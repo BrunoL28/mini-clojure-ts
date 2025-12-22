@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as path from "path";
+
 // --- TIPOS ---
 // Aqui será definido o que nosso interpretador consegue entender
 
@@ -5,14 +8,54 @@ type Atom = string | number;
 type Expression = Atom | List;
 interface List extends Array<Expression> {}
 
-// --- 1. Tokenizer (Léxico) ---
-// Transforma a string de código em uma lista de tokens (palavras e símbolos)
+// Estrutura de uma função criada pelo utilizador
+interface UserFunction {
+    params: string[];
+    body: Expression;
+    env: Env;
+}
+
+// --- CLASSE ENVIRONMENT (Ambiente) ---
+class Env {
+    private vars: { [key: string]: any } = {};
+
+    constructor(
+        public outer: Env | null = null,
+        binds: string[] = [],
+        exprs: any[] = [],
+    ) {
+        for (let i = 0; i < binds.length && i < exprs.length; i++) {
+            this.set(binds[i]!, exprs[i]);
+        }
+    }
+
+    // Define um valor neste escopo
+    set(name: string, value: any) {
+        this.vars[name] = value;
+    }
+
+    // Busca um valor (aqui ou nos pais)
+    get(name: string): any {
+        if (name in this.vars) {
+            return this.vars[name];
+        }
+        if (this.outer) {
+            return this.outer.get(name);
+        }
+        throw new Error(`Símbolo '${name}' não encontrado.`);
+    }
+}
+
+const globalEnv = new Env();
+
 function tokenize(input: string): string[] {
-    return input
-        .replace(/\(/g, " ( ")
-        .replace(/\)/g, " ) ")
-        .trim()
-        .split(/\s+/);
+    // 1. /"(?:\\.|[^\\"])*"?/ -> Captura strings completas (ex: "olá mundo")
+    // 2. /[\(\)]/             -> Captura parênteses individuais
+    // 3. /[^\s()]+/           -> Captura símbolos e números (tudo o que não for espaço ou parenteses)
+    const regex = /"(?:\\.|[^\\"])*"?|[\(\)]|[^\s()]+/g;
+
+    const tokens = input.match(regex);
+    return tokens || [];
 }
 
 // --- 2. Parser (Síntaxe) ---
@@ -40,20 +83,17 @@ function parse(tokens: string[]): Expression {
     }
 }
 
-// --- 3. ENVIRONMENT (Ambiente) ---
-// Define as funções básicas que a linguagem conhece (soma, subtração, etc.)
-const standardEnv: { [key: string]: Function | any } = {
+// --- 3. ENVIRONMENT ---
+const initialConfig: { [key: string]: any } = {
     "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
     "-": (a: number, b: number) => a - b,
     "*": (...args: number[]) => args.reduce((a, b) => a * b, 1),
     "/": (a: number, b: number) => a / b,
-
     ">": (a: number, b: number) => a > b,
     "<": (a: number, b: number) => a < b,
-    "=": (a: any, b: any) => a === b,
     ">=": (a: number, b: number) => a >= b,
     "<=": (a: number, b: number) => a <= b,
-
+    "=": (a: any, b: any) => a === b,
     print: (...args: any[]) => {
         console.log(...args);
         return null;
@@ -63,14 +103,18 @@ const standardEnv: { [key: string]: Function | any } = {
     nil: null,
 };
 
-// --- 4. EVALUATOR (Avaliador) ---
-// Executa o código processado.
-function evaluate(x: Expression, env: any): any {
+//globalEnv
+Object.keys(initialConfig).forEach((key) => {
+    globalEnv.set(key, initialConfig[key]);
+});
+
+// --- 4. EVALUATOR ---
+function evaluate(x: Expression, env: Env): any {
     if (typeof x === "string") {
-        if (x in env) {
-            return env[x];
+        if (x.startsWith('"') && x.endsWith('"')) {
+            return x.slice(1, -1);
         }
-        throw new Error(`Símbolo '${x}' não definido.`);
+        return env.get(x);
     }
 
     if (typeof x === "number") {
@@ -79,80 +123,102 @@ function evaluate(x: Expression, env: any): any {
 
     if (Array.isArray(x)) {
         if (x.length === 0) return null;
-
         const [op, ...args] = x;
 
         if (op === "def") {
             const [name, valueExpr] = args;
-            if (typeof name !== "string") {
-                throw new Error(
-                    "O primeiro argumento de 'def' deve ser um símbolo (nome).",
-                );
-            }
-            if (valueExpr === undefined) {
-                throw new Error("'def' requer um valor.");
-            }
-            const value = evaluate(valueExpr, env);
-            env[name] = value;
+            if (typeof name !== "string")
+                throw new Error("Nome de variável inválido");
+            const value = evaluate(valueExpr!, env);
+            env.set(name, value);
             return value;
         }
 
         if (op === "if") {
             const [test, thenExpr, elseExpr] = args;
-
-            if (test === undefined) {
-                throw new Error("'if' requer uma condição de teste.");
-            }
-
-            if (thenExpr === undefined) {
-                throw new Error("'if' requer uma expressão then.");
-            }
-
-            const condition = evaluate(test, env);
-
+            const condition = evaluate(test!, env);
             if (condition !== false && condition !== null) {
-                return evaluate(thenExpr, env);
-            } else {
-                return elseExpr ? evaluate(elseExpr, env) : null;
+                return evaluate(thenExpr!, env);
             }
+            return elseExpr ? evaluate(elseExpr!, env) : null;
         }
 
-        if (op === undefined) {
-            throw new Error("Expressão vazia.");
+        if (op === "fn") {
+            const [params, body] = args;
+            return {
+                params: params as string[],
+                body: body!,
+                env: env,
+            } as UserFunction;
         }
 
-        const func = evaluate(op, env);
+        const func = evaluate(op!, env);
 
-        const evaluatedArgs = args.map((arg) => evaluate(arg, env));
+        const argsVal = args.map((arg) => evaluate(arg!, env));
 
         if (typeof func === "function") {
-            return func(...evaluatedArgs);
-        } else {
-            throw new Error(`'${op}' não é uma função.`);
+            return func(...argsVal);
+        }
+
+        if (
+            func &&
+            typeof func === "object" &&
+            "params" in func &&
+            "body" in func
+        ) {
+            const userFunc = func as UserFunction;
+
+            const functionEnv = new Env(
+                userFunc.env, // Pai (Closure)
+                userFunc.params, // Nomes dos parâmetros
+                argsVal, // Valores passados
+            );
+
+            return evaluate(userFunc.body, functionEnv);
+        }
+
+        throw new Error(`'${op}' não é uma função válida.`);
+    }
+}
+
+function run(source: string) {
+    const tokens = tokenize(source);
+
+    while (tokens.length > 0) {
+        try {
+            const ast = parse(tokens);
+
+            evaluate(ast, globalEnv);
+        } catch (e) {
+            console.error("Erro de execução:", e);
+            break;
         }
     }
 }
 
-// --- TESTE ---
-const program = [
-    "(def x 10)", // 1. Define x como 10
-    "(def y 20)", // 2. Define y como 20
-    "(print (+ x y))", // 3. Imprime 30
-    "(if (> x y) (print x) (print y))", // 4. Se x > y imprime x, senão y
-    "(def res (if (< x y) 100 200))", // 5. Teste inline
-    "(print res)", // 6. Deve imprimir 100
-];
+const rawArgs = process.argv.slice(2);
 
-console.log("--- Iniciando Execução ---");
+const args = rawArgs.filter((arg) => arg !== "--" && !arg.startsWith("-"));
 
-// Executa linha por linha mantendo o mesmo 'standardEnv' (memória)
-for (const line of program) {
-    console.log(`> ${line}`);
+if (args.length > 0) {
+    const filename = args[0];
+    const filepath = path.resolve(process.cwd(), filename!);
+
+    console.log(`> Executando: ${filename}`);
+
     try {
-        const tokens = tokenize(line);
-        const ast = parse(tokens);
-        evaluate(ast, standardEnv);
-    } catch (e) {
-        console.error("Erro:", e);
+        if (!fs.existsSync(filepath)) {
+            throw new Error(`Arquivo não encontrado: ${filepath}`);
+        }
+        const fileContent = fs.readFileSync(filepath, "utf-8");
+        run(fileContent);
+    } catch (error: any) {
+        console.error(`Erro: ${error.message}`);
     }
+} else {
+    console.log("-----------------------------------------");
+    console.log("Mini-Clojure Interpreter (TypeScript)");
+    console.log("-----------------------------------------");
+    console.log("Uso: pnpm start -- <arquivo.clj>");
+    console.log("Exemplo: pnpm start -- main.clj");
 }
