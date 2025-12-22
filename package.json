@@ -12,6 +12,11 @@
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
     "@types/node": "^25.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.7.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
