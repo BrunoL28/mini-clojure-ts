@@ -3,14 +3,14 @@
 
 type Atom = string | number;
 type Expression = Atom | List;
-interface List extends Array<Expression> {};
+interface List extends Array<Expression> {}
 
 // --- 1. Tokenizer (Léxico) ---
 // Transforma a string de código em uma lista de tokens (palavras e símbolos)
 function tokenize(input: string): string[] {
     return input
-        .replace(/\(/g, ' ( ')
-        .replace(/\)/g, ' ) ')
+        .replace(/\(/g, " ( ")
+        .replace(/\)/g, " ) ")
         .trim()
         .split(/\s+/);
 }
@@ -25,14 +25,14 @@ function parse(tokens: string[]): Expression {
 
     const token = tokens.shift()!;
 
-    if (token === '(') {
+    if (token === "(") {
         const list: List = [];
-        while (tokens[0] !== ')') {
+        while (tokens[0] !== ")") {
             list.push(parse(tokens));
         }
         tokens.shift();
         return list;
-    } else if (token === ')') {
+    } else if (token === ")") {
         throw new Error("Parênteses ')' inesperado");
     } else {
         const number = parseFloat(token);
@@ -42,53 +42,117 @@ function parse(tokens: string[]): Expression {
 
 // --- 3. ENVIRONMENT (Ambiente) ---
 // Define as funções básicas que a linguagem conhece (soma, subtração, etc.)
-const standardEnv: { [key: string]: Function } = {
-    '+': (...args: number[]) => args.reduce((a, b) => a + b, 0),
-    '-': (a: number, b: number) => a - b,
-    '*': (...args: number[]) => args.reduce((a, b) => a * b, 1),
-    '/': (a: number, b: number) => a / b,
-    'print': (...args: any[]) => console.log(...args),
+const standardEnv: { [key: string]: Function | any } = {
+    "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
+    "-": (a: number, b: number) => a - b,
+    "*": (...args: number[]) => args.reduce((a, b) => a * b, 1),
+    "/": (a: number, b: number) => a / b,
+
+    ">": (a: number, b: number) => a > b,
+    "<": (a: number, b: number) => a < b,
+    "=": (a: any, b: any) => a === b,
+    ">=": (a: number, b: number) => a >= b,
+    "<=": (a: number, b: number) => a <= b,
+
+    print: (...args: any[]) => {
+        console.log(...args);
+        return null;
+    },
+    true: true,
+    false: false,
+    nil: null,
 };
 
 // --- 4. EVALUATOR (Avaliador) ---
 // Executa o código processado.
 function evaluate(x: Expression, env: any): any {
-    if (typeof x === 'string') {
-        return env[x];
+    if (typeof x === "string") {
+        if (x in env) {
+            return env[x];
+        }
+        throw new Error(`Símbolo '${x}' não definido.`);
     }
 
-    if (typeof x === 'number') {
+    if (typeof x === "number") {
         return x;
     }
 
     if (Array.isArray(x)) {
-        const [funcName, ...args] = x;
-        
-        if (funcName === undefined) {
-            throw new Error("Lista vazia não pode ser avaliada");
+        if (x.length === 0) return null;
+
+        const [op, ...args] = x;
+
+        if (op === "def") {
+            const [name, valueExpr] = args;
+            if (typeof name !== "string") {
+                throw new Error(
+                    "O primeiro argumento de 'def' deve ser um símbolo (nome).",
+                );
+            }
+            if (valueExpr === undefined) {
+                throw new Error("'def' requer um valor.");
+            }
+            const value = evaluate(valueExpr, env);
+            env[name] = value;
+            return value;
         }
-        
-        const func = evaluate(funcName, env);
-        
+
+        if (op === "if") {
+            const [test, thenExpr, elseExpr] = args;
+
+            if (test === undefined) {
+                throw new Error("'if' requer uma condição de teste.");
+            }
+
+            if (thenExpr === undefined) {
+                throw new Error("'if' requer uma expressão then.");
+            }
+
+            const condition = evaluate(test, env);
+
+            if (condition !== false && condition !== null) {
+                return evaluate(thenExpr, env);
+            } else {
+                return elseExpr ? evaluate(elseExpr, env) : null;
+            }
+        }
+
+        if (op === undefined) {
+            throw new Error("Expressão vazia.");
+        }
+
+        const func = evaluate(op, env);
+
         const evaluatedArgs = args.map((arg) => evaluate(arg, env));
-        
-        if (typeof func === 'function') {
+
+        if (typeof func === "function") {
             return func(...evaluatedArgs);
         } else {
-            throw new Error(`'${funcName}' não é uma função.`);
+            throw new Error(`'${op}' não é uma função.`);
         }
     }
 }
 
 // --- TESTE ---
-const code = "(print (+ 5 (* 2 3)))";
+const program = [
+    "(def x 10)", // 1. Define x como 10
+    "(def y 20)", // 2. Define y como 20
+    "(print (+ x y))", // 3. Imprime 30
+    "(if (> x y) (print x) (print y))", // 4. Se x > y imprime x, senão y
+    "(def res (if (< x y) 100 200))", // 5. Teste inline
+    "(print res)", // 6. Deve imprimir 100
+];
 
-console.log(`Código Clojure: ${code}`);
+console.log("--- Iniciando Execução ---");
 
-try {
-    const tokens = tokenize(code);
-    const ast = parse(tokens);
-    const result = evaluate(ast, standardEnv);
-} catch (e) {
-  console.error(e);
+// Executa linha por linha mantendo o mesmo 'standardEnv' (memória)
+for (const line of program) {
+    console.log(`> ${line}`);
+    try {
+        const tokens = tokenize(line);
+        const ast = parse(tokens);
+        evaluate(ast, standardEnv);
+    } catch (e) {
+        console.error("Erro:", e);
+    }
 }
