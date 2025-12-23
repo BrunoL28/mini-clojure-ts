@@ -1,5 +1,6 @@
 import type { Expression } from "../types/index.js";
 import type { UserFunction } from "../types/index.js";
+import { ClojureVector } from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { Bounce, trampoline } from "./Trampoline.js";
@@ -10,6 +11,11 @@ export function evaluate(x: Expression, env: Env): any {
         return env.get(x);
     }
     if (typeof x === "number") return x;
+
+    if (x instanceof ClojureVector) {
+        const evaluatedItems = x.map((item) => trampoline(evaluate(item, env)));
+        return new ClojureVector(...evaluatedItems);
+    }
 
     if (Array.isArray(x)) {
         if (x.length === 0) return null;
@@ -93,4 +99,6 @@ export function evaluate(x: Expression, env: Env): any {
 
         throw new InvalidParamError(`'${op}' não é uma função válida.`);
     }
+
+    return x;
 }

@@ -1,5 +1,6 @@
 import type { Expression } from "../types/index.js";
 import type { List } from "../types/index.js";
+import { ClojureVector } from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 
 export function parse(tokens: string[]): Expression {
@@ -20,6 +21,19 @@ export function parse(tokens: string[]): Expression {
 
     if (token === ")") {
         throw new ClojureError("Parênteses ')' inesperado");
+    }
+
+    if (token === "[") {
+        const vector = new ClojureVector();
+        while (tokens.length > 0 && tokens[0] !== "]") {
+            vector.push(parse(tokens));
+        }
+        tokens.shift();
+        return vector;
+    }
+
+    if (token === "]") {
+        throw new ClojureError("Colchete ']' inesperado");
     }
 
     if (token === "'") {

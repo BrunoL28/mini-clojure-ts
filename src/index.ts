@@ -7,6 +7,7 @@ import { parse } from "./core/Parser.js";
 import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
+import { ClojureVector } from "./types/index.js";
 
 const globalEnv = new Env();
 Object.keys(initialConfig).forEach((key) => {
@@ -78,6 +79,9 @@ function startRepl() {
 }
 
 function formatResult(result: any): string {
+    if (result instanceof ClojureVector) {
+        return `[${result.map(formatResult).join(" ")}]`;
+    }
     if (Array.isArray(result)) {
         return `(${result.map(formatResult).join(" ")})`;
     }
@@ -96,7 +100,6 @@ const args = rawArgs.filter((arg) => arg !== "--" && !arg.startsWith("-"));
 if (args.length > 0) {
     const filename = args[0];
     const filepath = path.resolve(process.cwd(), filename!);
-    // console.log(`> Executando: ${filename}`);
 
     try {
         if (!fs.existsSync(filepath))

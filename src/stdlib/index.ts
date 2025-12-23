@@ -2,6 +2,7 @@ import { Env } from "../core/Environment.js";
 import { evaluate } from "../core/Evaluator.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { trampoline } from "../core/Trampoline.js";
+import { ClojureVector } from "../types/index.js";
 
 export const initialConfig: { [key: string]: any } = {
     "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
@@ -30,7 +31,6 @@ export const initialConfig: { [key: string]: any } = {
         const tail = Array.isArray(list) ? list : [];
         return [item, ...tail];
     },
-
     map: (func: any, list: any[]) => {
         if (!Array.isArray(list))
             throw new InvalidParamError("Map requer lista");
@@ -49,6 +49,12 @@ export const initialConfig: { [key: string]: any } = {
             throw new InvalidParamError("Map requer função");
         });
     },
+    vector: (...args: any[]) => new ClojureVector(...args),
+    nth: (coll: any[], index: number) => {
+        if (!Array.isArray(coll)) throw new Error("nth requer uma coleção");
+        return coll[index];
+    },
+    "vector?": (x: any) => x instanceof ClojureVector,
 
     true: true,
     false: false,
