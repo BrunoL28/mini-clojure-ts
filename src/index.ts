@@ -7,7 +7,7 @@ import { parse } from "./core/Parser.js";
 import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
-import { ClojureVector } from "./types/index.js";
+import { ClojureVector, ClojureKeyword, ClojureMap } from "./types/index.js";
 
 const globalEnv = new Env();
 Object.keys(initialConfig).forEach((key) => {
@@ -81,6 +81,17 @@ function startRepl() {
 function formatResult(result: any): string {
     if (result instanceof ClojureVector) {
         return `[${result.map(formatResult).join(" ")}]`;
+    }
+    if (result instanceof ClojureMap) {
+        const entries = [];
+        for (const [k, v] of result) {
+            entries.push(`${formatResult(k)} ${formatResult(v)}`);
+        }
+        return `{${entries.join(" ")}}`;
+    }
+
+    if (result instanceof ClojureKeyword) {
+        return result.value;
     }
     if (Array.isArray(result)) {
         return `(${result.map(formatResult).join(" ")})`;

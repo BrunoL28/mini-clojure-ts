@@ -1,6 +1,6 @@
 import type { Expression } from "../types/index.js";
 import type { UserFunction } from "../types/index.js";
-import { ClojureVector } from "../types/index.js";
+import { ClojureVector, ClojureKeyword, ClojureMap } from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { Bounce, trampoline } from "./Trampoline.js";
@@ -11,6 +11,18 @@ export function evaluate(x: Expression, env: Env): any {
         return env.get(x);
     }
     if (typeof x === "number") return x;
+
+    if (x instanceof ClojureKeyword) return x;
+
+    if (x instanceof ClojureMap) {
+        const newMap = new ClojureMap();
+        for (const [key, val] of x) {
+            const evalKey = trampoline(evaluate(key, env));
+            const evalVal = trampoline(evaluate(val, env));
+            newMap.set(evalKey, evalVal);
+        }
+        return newMap;
+    }
 
     if (x instanceof ClojureVector) {
         const evaluatedItems = x.map((item) => trampoline(evaluate(item, env)));

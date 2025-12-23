@@ -1,6 +1,6 @@
 import type { Expression } from "../types/index.js";
 import type { List } from "../types/index.js";
-import { ClojureVector } from "../types/index.js";
+import { ClojureVector, ClojureKeyword, ClojureMap } from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 
 export function parse(tokens: string[]): Expression {
@@ -36,9 +36,35 @@ export function parse(tokens: string[]): Expression {
         throw new ClojureError("Colchete ']' inesperado");
     }
 
+    if (token === "{") {
+        const map = new ClojureMap();
+        while (tokens.length > 0 && tokens[0] !== "}") {
+            const key = parse(tokens);
+
+            if (tokens.length === 0 || tokens[0] === "}") {
+                throw new ClojureError(
+                    "Mapa desbalanceado: falta valor para a última chave",
+                );
+            }
+
+            const value = parse(tokens);
+            map.set(key, value);
+        }
+        tokens.shift();
+        return map;
+    }
+
+    if (token === "}") {
+        throw new ClojureError("Chaveta '}' inesperada");
+    }
+
     if (token === "'") {
         const nextExpr = parse(tokens);
         return ["quote", nextExpr];
+    }
+
+    if (token.startsWith(":") && token.length > 1) {
+        return new ClojureKeyword(token);
     }
 
     const number = parseFloat(token);
