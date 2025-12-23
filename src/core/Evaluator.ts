@@ -2,6 +2,7 @@ import type { Expression } from "../types/index.js";
 import type { UserFunction } from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
+import { Bounce, trampoline } from "./Trampoline.js";
 
 export function evaluate(x: Expression, env: Env): any {
     if (typeof x === "string") {
@@ -18,14 +19,14 @@ export function evaluate(x: Expression, env: Env): any {
             const [name, valueExpr] = args;
             if (typeof name !== "string")
                 throw new InvalidParamError("Nome de variável inválido no def");
-            const value = evaluate(valueExpr!, env);
+            const value = trampoline(evaluate(valueExpr!, env));
             env.set(name, value);
             return value;
         }
 
         if (op === "if") {
             const [test, thenExpr, elseExpr] = args;
-            const condition = evaluate(test!, env);
+            const condition = trampoline(evaluate(test!, env));
             if (condition !== false && condition !== null)
                 return evaluate(thenExpr!, env);
             return elseExpr ? evaluate(elseExpr!, env) : null;
@@ -35,8 +36,13 @@ export function evaluate(x: Expression, env: Env): any {
 
         if (op === "do") {
             let result = null;
-            for (const arg of args) result = evaluate(arg!, env);
-            return result;
+            for (let i = 0; i < args.length - 1; i++) {
+                trampoline(evaluate(args[i]!, env));
+            }
+            if (args.length > 0) {
+                return evaluate(args[args.length - 1]!, env);
+            }
+            return null;
         }
 
         if (op === "fn") {
@@ -51,27 +57,27 @@ export function evaluate(x: Expression, env: Env): any {
         if (op === "let") {
             const [bindings, ...body] = args;
             if (!Array.isArray(bindings))
-                throw new InvalidParamError("let requer uma lista de bindings");
+                throw new InvalidParamError("let requer bindings");
 
             const letEnv = new Env(env);
             for (let i = 0; i < bindings.length; i += 2) {
                 const name = bindings[i];
-                const val = evaluate(bindings[i + 1]!, env);
+                const val = trampoline(evaluate(bindings[i + 1]!, env));
                 if (typeof name !== "string")
-                    throw new InvalidParamError(
-                        "Nome de variável inválido no let",
-                    );
+                    throw new InvalidParamError("Nome inválido no let");
                 letEnv.set(name, val);
             }
 
-            let res = null;
-            for (const expr of body) res = evaluate(expr!, letEnv);
-            return res;
+            for (let i = 0; i < body.length - 1; i++) {
+                trampoline(evaluate(body[i]!, letEnv));
+            }
+            if (body.length > 0)
+                return evaluate(body[body.length - 1]!, letEnv);
+            return null;
         }
 
-        const func = evaluate(op!, env);
-        const argsVal = args.map((arg) => evaluate(arg!, env));
-
+        const func = trampoline(evaluate(op!, env));
+        const argsVal = args.map((arg) => trampoline(evaluate(arg!, env)));
         if (typeof func === "function") return func(...argsVal);
 
         if (
@@ -82,7 +88,7 @@ export function evaluate(x: Expression, env: Env): any {
         ) {
             const userFunc = func as UserFunction;
             const functionEnv = new Env(userFunc.env, userFunc.params, argsVal);
-            return evaluate(userFunc.body, functionEnv);
+            return new Bounce(() => evaluate(userFunc.body, functionEnv));
         }
 
         throw new InvalidParamError(`'${op}' não é uma função válida.`);

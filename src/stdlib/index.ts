@@ -1,6 +1,7 @@
 import { Env } from "../core/Environment.js";
 import { evaluate } from "../core/Evaluator.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
+import { trampoline } from "../core/Trampoline.js";
 
 export const initialConfig: { [key: string]: any } = {
     "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
@@ -10,6 +11,8 @@ export const initialConfig: { [key: string]: any } = {
     ">": (a: number, b: number) => a > b,
     "<": (a: number, b: number) => a < b,
     "=": (a: any, b: any) => a === b,
+    ">=": (a: number, b: number) => a >= b,
+    "<=": (a: number, b: number) => a <= b,
     "%": (a: number, b: number) => a % b,
 
     str: (...args: any[]) => args.join(""),
@@ -29,11 +32,9 @@ export const initialConfig: { [key: string]: any } = {
     },
 
     map: (func: any, list: any[]) => {
-        if (!Array.isArray(list)) {
-            throw new InvalidParamError(
-                "O segundo argumento do map deve ser uma lista.",
-            );
-        }
+        if (!Array.isArray(list))
+            throw new InvalidParamError("Map requer lista");
+
         return list.map((item) => {
             if (typeof func === "function") {
                 return func(item);
@@ -43,12 +44,9 @@ export const initialConfig: { [key: string]: any } = {
                 "body" in func
             ) {
                 const fnEnv = new Env(func.env, func.params, [item]);
-                return evaluate(func.body, fnEnv);
-            } else {
-                throw new InvalidParamError(
-                    "O primeiro argumento do map deve ser uma função.",
-                );
+                return trampoline(evaluate(func.body, fnEnv));
             }
+            throw new InvalidParamError("Map requer função");
         });
     },
 
