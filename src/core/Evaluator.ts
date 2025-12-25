@@ -1,9 +1,32 @@
 import type { Expression } from "../types/index.js";
 import type { UserFunction } from "../types/index.js";
-import { ClojureVector, ClojureKeyword, ClojureMap } from "../types/index.js";
+import {
+    ClojureVector,
+    ClojureKeyword,
+    ClojureMap,
+    ClojureMacro,
+} from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { Bounce, trampoline } from "./Trampoline.js";
+
+function evalQuasiquote(ast: any, env: Env): any {
+    if (Array.isArray(ast)) {
+        if (ast.length === 0) return [];
+
+        if (ast[0] === "unquote") {
+            return evaluate(ast[1], env);
+        }
+
+        return ast.map((item) => evalQuasiquote(item, env));
+    }
+    if (ast instanceof ClojureVector) {
+        return new ClojureVector(
+            ...ast.map((item) => evalQuasiquote(item, env)),
+        );
+    }
+    return ast;
+}
 
 export function evaluate(x: Expression, env: Env): any {
     if (typeof x === "string") {
@@ -104,7 +127,33 @@ export function evaluate(x: Expression, env: Env): any {
             return null;
         }
 
+        if (op === "defmacro") {
+            const [name, params, body] = args;
+            if (typeof name !== "string")
+                throw new InvalidParamError("Nome de macro inválido");
+            const macro = new ClojureMacro(params as string[], body!, env);
+            env.set(name, macro);
+            return name;
+        }
+
+        if (op === "quasiquote") {
+            return evalQuasiquote(args[0], env);
+        }
+
+        if (op === "unquote") {
+            throw new InvalidParamError(
+                "Unquote (~) só pode ser usado dentro de Quasiquote (`)",
+            );
+        }
+
         const func = trampoline(evaluate(op!, env));
+
+        if (func instanceof ClojureMacro) {
+            const macroEnv = new Env(func.env, func.params, args);
+            const expandedCode = trampoline(evaluate(func.body, macroEnv));
+            return evaluate(expandedCode, env);
+        }
+
         const argsVal = args.map((arg) => trampoline(evaluate(arg!, env)));
         if (typeof func === "function") return func(...argsVal);
 

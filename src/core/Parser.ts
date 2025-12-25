@@ -63,6 +63,16 @@ export function parse(tokens: string[]): Expression {
         return ["quote", nextExpr];
     }
 
+    if (token === "`") {
+        const nextExpr = parse(tokens);
+        return ["quasiquote", nextExpr];
+    }
+
+    if (token === "~") {
+        const nextExpr = parse(tokens);
+        return ["unquote", nextExpr];
+    }
+
     if (token.startsWith(":") && token.length > 1) {
         return new ClojureKeyword(token);
     }

@@ -6,7 +6,7 @@ export class Env {
     constructor(
         public outer: Env | null = null,
         binds: string[] = [],
-        exprs: string[] = [],
+        exprs: any[] = [],
     ) {
         for (let i = 0; i < binds.length && i < exprs.length; i++) {
             this.set(binds[i]!, exprs[i]);

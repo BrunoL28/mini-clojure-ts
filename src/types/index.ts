@@ -12,6 +12,14 @@ export class ClojureKeyword {
 
 export class ClojureVector extends Array<any> {}
 
+export class ClojureMacro {
+    constructor(
+        public params: string[],
+        public body: Expression,
+        public env: Env,
+    ) {}
+}
+
 export type Atom = string | number | ClojureKeyword;
 export type Expression = Atom | List | ClojureVector | ClojureMap;
 export interface List extends Array<Expression> {}

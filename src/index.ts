@@ -7,7 +7,12 @@ import { parse } from "./core/Parser.js";
 import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
-import { ClojureVector, ClojureKeyword, ClojureMap } from "./types/index.js";
+import {
+    ClojureVector,
+    ClojureKeyword,
+    ClojureMap,
+    ClojureMacro,
+} from "./types/index.js";
 
 const globalEnv = new Env();
 Object.keys(initialConfig).forEach((key) => {
@@ -82,6 +87,7 @@ function formatResult(result: any): string {
     if (result instanceof ClojureVector) {
         return `[${result.map(formatResult).join(" ")}]`;
     }
+
     if (result instanceof ClojureMap) {
         const entries = [];
         for (const [k, v] of result) {
@@ -93,15 +99,23 @@ function formatResult(result: any): string {
     if (result instanceof ClojureKeyword) {
         return result.value;
     }
+
+    if (result instanceof ClojureMacro) {
+        return `#<Macro params:[${result.params}]>`;
+    }
+
     if (Array.isArray(result)) {
         return `(${result.map(formatResult).join(" ")})`;
     }
+
     if (typeof result === "string") {
         return `"${result}"`;
     }
+
     if (result && typeof result === "object" && "params" in result) {
         return `#<Function params:[${result.params}]>`;
     }
+
     return String(result);
 }
 

@@ -15,13 +15,16 @@ export const initialConfig: { [key: string]: any } = {
     ">=": (a: number, b: number) => a >= b,
     "<=": (a: number, b: number) => a <= b,
     "%": (a: number, b: number) => a % b,
-
+    not: (a: any) => (a === false || a === null ? true : false),
     str: (...args: any[]) => args.join(""),
     print: (...args: any[]) => {
         console.log(...args);
         return null;
     },
-
+    println: (...args: any[]) => {
+        console.log(...args);
+        return null;
+    },
     list: (...args: any[]) => args,
     first: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a[0] : null),
     rest: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a.slice(1) : []),
@@ -30,6 +33,12 @@ export const initialConfig: { [key: string]: any } = {
     cons: (item: any, list: any[]) => {
         const tail = Array.isArray(list) ? list : [];
         return [item, ...tail];
+    },
+    concat: (list1: any[], list2: any[]) => {
+        if (!Array.isArray(list1) || !Array.isArray(list2)) {
+            throw new InvalidParamError("Concat requer duas listas.");
+        }
+        return [...list1, ...list2];
     },
     map: (func: any, list: any[]) => {
         if (!Array.isArray(list))
