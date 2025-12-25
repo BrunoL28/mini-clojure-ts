@@ -2,7 +2,12 @@ import { Env } from "../core/Environment.js";
 import { evaluate } from "../core/Evaluator.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { trampoline } from "../core/Trampoline.js";
-import { ClojureVector, ClojureKeyword, ClojureMap } from "../types/index.js";
+import {
+    ClojureVector,
+    ClojureKeyword,
+    ClojureMap,
+    ClojureAtom,
+} from "../types/index.js";
 
 export const initialConfig: { [key: string]: any } = {
     "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
@@ -33,6 +38,15 @@ export const initialConfig: { [key: string]: any } = {
     cons: (item: any, list: any[]) => {
         const tail = Array.isArray(list) ? list : [];
         return [item, ...tail];
+    },
+    conj: (coll: any, item: any) => {
+        if (coll instanceof ClojureVector) {
+            return new ClojureVector(...coll, item);
+        }
+        if (Array.isArray(coll)) {
+            return [item, ...coll];
+        }
+        return [item];
     },
     concat: (list1: any[], list2: any[]) => {
         if (!Array.isArray(list1) || !Array.isArray(list2)) {
@@ -125,6 +139,42 @@ export const initialConfig: { [key: string]: any } = {
         }
 
         return value;
+    },
+    atom: (val: any) => new ClojureAtom(val),
+    "atom?": (x: any) => x instanceof ClojureAtom,
+    deref: (atm: any) => {
+        if (!(atm instanceof ClojureAtom))
+            throw new InvalidParamError("deref requer um átomo");
+        return atm.value;
+    },
+    "reset!": (atm: any, newVal: any) => {
+        if (!(atm instanceof ClojureAtom))
+            throw new InvalidParamError("reset! requer um átomo");
+        atm.value = newVal;
+        return newVal;
+    },
+    "swap!": (atm: any, func: any, ...args: any[]) => {
+        if (!(atm instanceof ClojureAtom))
+            throw new InvalidParamError("swap! requer um átomo");
+
+        let newVal;
+        if (typeof func === "function") {
+            newVal = func(atm.value, ...args);
+        } else if (
+            typeof func === "object" &&
+            "params" in func &&
+            "body" in func
+        ) {
+            const fnEnv = new Env(func.env, func.params, [atm.value, ...args]);
+            newVal = trampoline(evaluate(func.body, fnEnv));
+        } else {
+            throw new InvalidParamError(
+                "swap! requer uma função como segundo argumento",
+            );
+        }
+
+        atm.value = newVal;
+        return newVal;
     },
 
     true: true,

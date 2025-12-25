@@ -73,6 +73,11 @@ export function parse(tokens: string[]): Expression {
         return ["unquote", nextExpr];
     }
 
+    if (token === "@") {
+        const nextExpr = parse(tokens);
+        return ["deref", nextExpr];
+    }
+
     if (token.startsWith(":") && token.length > 1) {
         return new ClojureKeyword(token);
     }

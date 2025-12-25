@@ -1,6 +1,7 @@
 export function tokenize(input: string): string[] {
-    const codeWithoutComments = input.replace(/;.*$/gm, "");
-    const regex = /"(?:\\.|[^\\"])*"?|[\(\)\[\]\{\}'`~]|[^\s,()\[\]\{\}'`~]+/g;
-    const tokens = codeWithoutComments.match(regex);
+    const codeClean = input.replace(/;.*$/gm, "").replace(/,/g, " ");
+    const regex =
+        /"(?:\\.|[^\\"])*"?|[\(\)\[\]\{\}'`~@]|[^\s,()\[\]\{\}'`~@]+/g;
+    const tokens = codeClean.match(regex);
     return tokens || [];
 }

@@ -5,6 +5,7 @@ import {
     ClojureKeyword,
     ClojureMap,
     ClojureMacro,
+    ClojureAtom,
 } from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
@@ -61,6 +62,8 @@ export function evaluate(x: Expression, env: Env): any {
         const evaluatedItems = x.map((item) => trampoline(evaluate(item, env)));
         return new ClojureVector(...evaluatedItems);
     }
+
+    if (x instanceof ClojureAtom) return x;
 
     if (Array.isArray(x)) {
         if (x.length === 0) return null;
