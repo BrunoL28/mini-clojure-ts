@@ -6,8 +6,8 @@
 
 <em>Um interpretador de Clojure robusto e modular escrito em TypeScript.</em>
 
-[![license](https://img.shields.io/github/license/BrunoL28/mini-clojure-ts?style=default&logo=opensourceinitiative&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/blob/main/LICENSE)
-[![last-commit](https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts?style=default&logo=git&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/commits/main)
+[![license](https://img.shields.io/github/license/BrunoL28/mini-clojure-ts?style=default&logo=opensourceinitiative&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/blob/master/LICENSE)
+[![last-commit](https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts?style=default&logo=git&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/commits/master)
 [![repo-top-language](https://img.shields.io/github/languages/top/BrunoL28/mini-clojure-ts?style=default&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts)
 [![repo-language-count](https://img.shields.io/github/languages/count/BrunoL28/mini-clojure-ts?style=default&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts)
 
