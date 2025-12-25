@@ -90,6 +90,33 @@ export const initialConfig: { [key: string]: any } = {
         if (!(map instanceof ClojureMap)) return [];
         return new ClojureVector(...map.values());
     },
+    new: (ClassRef: any, ...args: any[]) => {
+        if (typeof ClassRef !== "function") {
+            throw new InvalidParamError(
+                "O primeiro argumento de 'new' deve ser uma classe/função construtora.",
+            );
+        }
+        return new ClassRef(...args);
+    },
+    ".": (member: string | ClojureKeyword, target: any, ...args: any[]) => {
+        if (target === undefined || target === null) {
+            throw new InvalidParamError(
+                "Alvo do operador '.' é nulo ou indefinido.",
+            );
+        }
+
+        let propName = member.toString();
+        if (member instanceof ClojureKeyword) propName = member.value.slice(1);
+        else if (propName.startsWith('"')) propName = propName.slice(1, -1);
+
+        const value = target[propName];
+
+        if (typeof value === "function") {
+            return value.apply(target, args);
+        }
+
+        return value;
+    },
 
     true: true,
     false: false,

@@ -8,6 +8,16 @@ import { Bounce, trampoline } from "./Trampoline.js";
 export function evaluate(x: Expression, env: Env): any {
     if (typeof x === "string") {
         if (x.startsWith('"') && x.endsWith('"')) return x.slice(1, -1);
+        if (x.startsWith("js/")) {
+            const jsSymbol = x.slice(3);
+            const value = (globalThis as any)[jsSymbol];
+            if (value === undefined) {
+                throw new InvalidParamError(
+                    `Global JavaScript 'js/${jsSymbol}' não encontrado.`,
+                );
+            }
+            return value;
+        }
         return env.get(x);
     }
     if (typeof x === "number") return x;
