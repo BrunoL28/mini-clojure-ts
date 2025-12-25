@@ -6,10 +6,10 @@
 
 <em>Um interpretador de Clojure robusto e modular escrito em TypeScript.</em>
 
-<img src="[https://img.shields.io/github/license/BrunoL28/mini-clojure-ts?style=default&logo=opensourceinitiative&logoColor=white&color=A931EC](https://www.google.com/search?q=https://img.shields.io/github/license/BrunoL28/mini-clojure-ts%3Fstyle%3Ddefault%26logo%3Dopensourceinitiative%26logoColor%3Dwhite%26color%3DA931EC)" alt="license">
-<img src="[https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts?style=default&logo=git&logoColor=white&color=A931EC](https://www.google.com/search?q=https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts%3Fstyle%3Ddefault%26logo%3Dgit%26logoColor%3Dwhite%26color%3DA931EC)" alt="last-commit">
-<img src="[https://img.shields.io/github/languages/top/BrunoL28/mini-clojure-ts?style=default&color=A931EC](https://www.google.com/search?q=https://img.shields.io/github/languages/top/BrunoL28/mini-clojure-ts%3Fstyle%3Ddefault%26color%3DA931EC)" alt="repo-top-language">
-<img src="[https://img.shields.io/github/languages/count/BrunoL28/mini-clojure-ts?style=default&color=A931EC](https://www.google.com/search?q=https://img.shields.io/github/languages/count/BrunoL28/mini-clojure-ts%3Fstyle%3Ddefault%26color%3DA931EC)" alt="repo-language-count">
+[![license](https://img.shields.io/github/license/BrunoL28/mini-clojure-ts?style=default&logo=opensourceinitiative&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/blob/main/LICENSE)
+[![last-commit](https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts?style=default&logo=git&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/commits/main)
+[![repo-top-language](https://img.shields.io/github/languages/top/BrunoL28/mini-clojure-ts?style=default&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts)
+[![repo-language-count](https://img.shields.io/github/languages/count/BrunoL28/mini-clojure-ts?style=default&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts)
 
 </div>
 
@@ -20,24 +20,19 @@
 <details>
 <summary>Table of Contents</summary>
 
-* [Table of Contents](https://www.google.com/search?q=%23table-of-contents)
-* [Overview](https://www.google.com/search?q=%23overview)
-* [Features](https://www.google.com/search?q=%23features)
-* [Project Structure](https://www.google.com/search?q=%23project-structure)
-* [Project Index](https://www.google.com/search?q=%23project-index)
-
-
-* [Getting Started](https://www.google.com/search?q=%23getting-started)
-* [Prerequisites](https://www.google.com/search?q=%23prerequisites)
-* [Installation](https://www.google.com/search?q=%23installation)
-* [Usage](https://www.google.com/search?q=%23usage)
-* [Testing](https://www.google.com/search?q=%23testing)
-
-
-* [Roadmap](https://www.google.com/search?q=%23roadmap)
-* [Contributing](https://www.google.com/search?q=%23contributing)
-* [License](https://www.google.com/search?q=%23license)
-* [Acknowledgments](https://www.google.com/search?q=%23acknowledgments)
+- [Overview](#overview)
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Project Index](#project-index)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Testing](#testing)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 </details>
 
@@ -270,9 +265,9 @@ The project includes a suite of `.clj` files to test various features like recur
 
 ## Contributing
 
-* **💬 [Join the Discussions**](https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/discussions): Share your insights, provide feedback, or ask questions.
-* **🐛 [Report Issues**](https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/issues): Submit bugs found or log feature requests.
-* **💡 [Submit Pull Requests**](https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/pulls): Review open PRs, and submit your own PRs.
+* **💬 [Join the Discussions]**(https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/discussions): Share your insights, provide feedback, or ask questions.
+* **🐛 [Report Issues]**(https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/issues): Submit bugs found or log feature requests.
+* **💡 [Submit Pull Requests]**(https://www.google.com/search?q=https://github.com/BrunoL28/mini-clojure-ts/pulls): Review open PRs, and submit your own PRs.
 
 <details closed>
 <summary>Contributing Guidelines</summary>
@@ -297,7 +292,7 @@ git checkout -b feature/my-new-feature
 
 ## License
 
-Distributed under the ISC License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
