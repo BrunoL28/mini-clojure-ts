@@ -176,6 +176,9 @@ export const initialConfig: { [key: string]: any } = {
         atm.value = newVal;
         return newVal;
     },
+    throw: (msg: string) => {
+        throw new Error(msg);
+    },
 
     true: true,
     false: false,

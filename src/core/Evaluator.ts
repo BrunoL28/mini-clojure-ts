@@ -130,6 +130,50 @@ export function evaluate(x: Expression, env: Env): any {
             return null;
         }
 
+        if (op === "try") {
+            const tryBody = [];
+            let catchClause = null;
+
+            for (const arg of args) {
+                if (
+                    Array.isArray(arg) &&
+                    arg.length > 0 &&
+                    arg[0] === "catch"
+                ) {
+                    catchClause = arg;
+                } else {
+                    tryBody.push(arg);
+                }
+            }
+
+            try {
+                let result = null;
+                for (const expr of tryBody) {
+                    result = trampoline(evaluate(expr!, env));
+                }
+                return result;
+            } catch (e: any) {
+                if (catchClause) {
+                    const [_, errVarName, errBody] = catchClause;
+
+                    if (typeof errVarName !== "string") {
+                        throw new InvalidParamError(
+                            "Nome da variável de erro inválido no catch",
+                        );
+                    }
+
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+
+                    const catchEnv = new Env(env, [errVarName], [errorMessage]);
+
+                    return evaluate(errBody!, catchEnv);
+                }
+
+                throw e;
+            }
+        }
+
         if (op === "defmacro") {
             const [name, params, body] = args;
             if (typeof name !== "string")
