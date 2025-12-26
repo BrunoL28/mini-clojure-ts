@@ -29,6 +29,40 @@ function evalQuasiquote(ast: any, env: Env): any {
     return ast;
 }
 
+function bind(env: Env, shape: any, value: any) {
+    if (typeof shape === "string") {
+        if (shape === "&") return;
+        env.set(shape, value);
+        return;
+    }
+
+    if (Array.isArray(shape) || shape instanceof ClojureVector) {
+        if (!Array.isArray(value) && !(value instanceof ClojureVector)) {
+            throw new InvalidParamError(
+                `Destructuring: esperava uma coleção, recebeu ${value}`,
+            );
+        }
+
+        let valIndex = 0;
+        for (let i = 0; i < shape.length; i++) {
+            const param = shape[i];
+
+            if (param === "&") {
+                const nextParam = shape[i + 1];
+                if (!nextParam)
+                    throw new InvalidParamError("Esperado nome após '&'");
+                const remaining = value.slice(valIndex);
+                bind(env, nextParam, new ClojureVector(...remaining));
+                break;
+            }
+
+            const valToBind = valIndex < value.length ? value[valIndex] : null;
+            bind(env, param, valToBind);
+            valIndex++;
+        }
+    }
+}
+
 export function evaluate(x: Expression, env: Env): any {
     if (typeof x === "string") {
         if (x.startsWith('"') && x.endsWith('"')) return x.slice(1, -1);
@@ -115,11 +149,10 @@ export function evaluate(x: Expression, env: Env): any {
 
             const letEnv = new Env(env);
             for (let i = 0; i < bindings.length; i += 2) {
-                const name = bindings[i];
-                const val = trampoline(evaluate(bindings[i + 1]!, env));
-                if (typeof name !== "string")
-                    throw new InvalidParamError("Nome inválido no let");
-                letEnv.set(name, val);
+                const shape = bindings[i];
+                const valExpr = bindings[i + 1];
+                const val = trampoline(evaluate(valExpr!, env));
+                bind(letEnv, shape, val);
             }
 
             for (let i = 0; i < body.length - 1; i++) {
@@ -211,7 +244,8 @@ export function evaluate(x: Expression, env: Env): any {
             "body" in func
         ) {
             const userFunc = func as UserFunction;
-            const functionEnv = new Env(userFunc.env, userFunc.params, argsVal);
+            const functionEnv = new Env(userFunc.env, [], []);
+            bind(functionEnv, userFunc.params, argsVal);
             return new Bounce(() => evaluate(userFunc.body, functionEnv));
         }
 

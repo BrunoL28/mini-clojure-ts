@@ -29,7 +29,7 @@ export type Expression = Atom | List | ClojureVector | ClojureMap | ClojureAtom;
 export interface List extends Array<Expression> {}
 
 export interface UserFunction {
-    params: string[];
+    params: any[];
     body: Expression;
     env: Env;
 }
