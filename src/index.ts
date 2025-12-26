@@ -13,6 +13,7 @@ import {
     ClojureMap,
     ClojureMacro,
 } from "./types/index.js";
+import { transpile } from "./core/Transpiler.js";
 
 const globalEnv = new Env();
 Object.keys(initialConfig).forEach((key) => {
@@ -119,20 +120,53 @@ function formatResult(result: any): string {
     return String(result);
 }
 
-const rawArgs = process.argv.slice(2);
-const args = rawArgs.filter((arg) => arg !== "--" && !arg.startsWith("-"));
-
-if (args.length > 0) {
-    const filename = args[0];
-    const filepath = path.resolve(process.cwd(), filename!);
-
+function compileFile(filepath: string) {
     try {
         if (!fs.existsSync(filepath))
             throw new Error(`Arquivo não encontrado: ${filepath}`);
-        const fileContent = fs.readFileSync(filepath, "utf-8");
-        run(fileContent);
+
+        const source = fs.readFileSync(filepath, "utf-8");
+        const tokens = tokenize(source);
+
+        const expressions = [];
+        while (tokens.length > 0) {
+            expressions.push(parse(tokens));
+        }
+
+        const jsHeader = `// Compilado por Mini-Clojure-TS\n`;
+        const jsCode = expressions.map(transpile).join(";\n") + ";";
+
+        const outFile = filepath.replace(".clj", ".js");
+        fs.writeFileSync(outFile, jsHeader + jsCode);
+
+        console.log(`\x1b[32m✔ Sucesso! Compilado para: ${outFile}\x1b[0m`);
+        console.log(`Execute com: node ${outFile}`);
     } catch (error: any) {
-        console.error(error.message);
+        console.error("\x1b[31mErro de Compilação:\x1b[0m", error.message);
+    }
+}
+
+const rawArgs = process.argv.slice(2);
+const isCompile = rawArgs.includes("-t") || rawArgs.includes("--transpile");
+const fileArgs = rawArgs.filter(
+    (arg) => arg !== "-t" && arg !== "--transpile" && !arg.startsWith("-"),
+);
+
+if (fileArgs.length > 0) {
+    const filename = fileArgs[0];
+    const filepath = path.resolve(process.cwd(), filename!);
+
+    if (isCompile) {
+        compileFile(filepath);
+    } else {
+        try {
+            if (!fs.existsSync(filepath))
+                throw new Error(`Arquivo não encontrado: ${filepath}`);
+            const fileContent = fs.readFileSync(filepath, "utf-8");
+            run(fileContent);
+        } catch (error: any) {
+            console.error(error.message);
+        }
     }
 } else {
     startRepl();
