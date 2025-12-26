@@ -256,9 +256,9 @@ The project includes a suite of `.clj` files to test various features like recur
 ## Roadmap
 
 * [x] **v1.0.0:** TCO, Macros, Maps, Vectors, JS Interop.
-* [ ] **v1.1.0:** Atoms (State Management).
-* [ ] **v1.2.0:** Try/Catch Error Handling.
-* [ ] **v1.3.0:** Destructuring support.
+* [x] **v1.1.0:** Atoms (State Management).
+* [x] **v1.2.0:** Try/Catch Error Handling.
+* [x] **v1.3.0:** Destructuring support.
 * [ ] **v2.0.0:** Transpiler (Compile to JS).
 
 ---
