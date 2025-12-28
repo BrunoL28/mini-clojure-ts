@@ -8,7 +8,7 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
     let col = 1;
 
     const regex =
-        /"(?:\\.|[^\\"])*"?|[\(\)\[\]\{\}'`~@]|;.*|[^\s,()\[\]\{\}'`~@]+/y;
+        /"(?:\\.|[^\\"\n])*"?|[\(\)\[\]\{\}'`~@]|;.*|[^\s,()\[\]\{\}'`~@]+/y;
 
     while (current < input.length) {
         let char = input[current];
@@ -47,16 +47,11 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
                 start: startLoc,
                 end: endLoc,
             };
-
             if (value.startsWith(";")) {
                 continue;
             }
 
-            if (
-                value.startsWith('"') &&
-                !value.endsWith('"') &&
-                value.length > 1
-            ) {
+            if (value.startsWith('"') && !value.endsWith('"')) {
                 throw new ClojureError(
                     `String não terminada na linha ${loc.start.line}`,
                     loc,
