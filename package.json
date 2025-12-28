@@ -8,7 +8,8 @@
         "build": "tsc",
         "start": "tsx src/index.ts",
         "lint": "eslint .",
-        "format": "prettier --write ."
+        "format": "prettier --write .",
+        "test": "tsx --test tests/**/*.test.ts"
     },
     "keywords": [],
     "author": "Bruno Lima Soares",
