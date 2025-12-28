@@ -26,6 +26,14 @@ export interface ILocatable {
 
 export class ClojureMap extends Map<any, any> implements ILocatable {
     public loc?: SourceLocation;
+
+    toString(): string {
+        const entries = [];
+        for (const [k, v] of this) {
+            entries.push(`${String(k)} ${String(v)}`);
+        }
+        return `{${entries.join(" ")}}`;
+    }
 }
 
 export class ClojureKeyword implements ILocatable {
@@ -48,10 +56,18 @@ export class ClojureSymbol implements ILocatable {
 
 export class ClojureVector extends Array<any> implements ILocatable {
     public loc?: SourceLocation;
+
+    toString(): string {
+        return `[${this.map(String).join(" ")}]`;
+    }
 }
 
 export class ClojureAtom {
     constructor(public value: any) {}
+
+    toString() {
+        return `(atom ${String(this.value)})`;
+    }
 }
 
 export class ClojureMacro {
@@ -60,6 +76,10 @@ export class ClojureMacro {
         public body: Expression,
         public env: Env,
     ) {}
+
+    toString() {
+        return "#<macro>";
+    }
 }
 
 export interface ClojureList extends Array<Expression> {
