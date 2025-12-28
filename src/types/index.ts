@@ -1,8 +1,35 @@
 import { Env } from "../core/Environment.js";
 
-export class ClojureMap extends Map<any, any> {}
+export interface SourceLocation {
+    file?: string;
+    start: {
+        line: number;
+        col: number;
+        index: number;
+    };
+    end: {
+        line: number;
+        col: number;
+        index: number;
+    };
+}
 
-export class ClojureKeyword {
+export interface Token {
+    type: string;
+    value: string;
+    loc: SourceLocation;
+}
+
+export interface ILocatable {
+    loc?: SourceLocation;
+}
+
+export class ClojureMap extends Map<any, any> implements ILocatable {
+    public loc?: SourceLocation;
+}
+
+export class ClojureKeyword implements ILocatable {
+    public loc?: SourceLocation;
     constructor(public value: string) {}
 
     toString() {
@@ -10,7 +37,18 @@ export class ClojureKeyword {
     }
 }
 
-export class ClojureVector extends Array<any> {}
+export class ClojureSymbol implements ILocatable {
+    public loc?: SourceLocation;
+    constructor(public value: string) {}
+
+    toString() {
+        return this.value;
+    }
+}
+
+export class ClojureVector extends Array<any> implements ILocatable {
+    public loc?: SourceLocation;
+}
 
 export class ClojureAtom {
     constructor(public value: any) {}
@@ -24,8 +62,25 @@ export class ClojureMacro {
     ) {}
 }
 
-export type Atom = string | number | ClojureKeyword;
-export type Expression = Atom | List | ClojureVector | ClojureMap | ClojureAtom;
+export interface ClojureList extends Array<Expression> {
+    loc?: SourceLocation;
+}
+
+export type Atom =
+    | string
+    | number
+    | ClojureKeyword
+    | ClojureSymbol
+    | null
+    | boolean;
+
+export type Expression =
+    | Atom
+    | ClojureList
+    | ClojureVector
+    | ClojureMap
+    | ClojureAtom;
+
 export interface List extends Array<Expression> {}
 
 export interface UserFunction {

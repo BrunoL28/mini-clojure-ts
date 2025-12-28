@@ -1,95 +1,135 @@
-import type { Expression } from "../types/index.js";
-import type { List } from "../types/index.js";
-import { ClojureVector, ClojureKeyword, ClojureMap } from "../types/index.js";
+import type { Token, Expression, ClojureList } from "../types/index.js";
+import {
+    ClojureVector,
+    ClojureKeyword,
+    ClojureMap,
+    ClojureSymbol,
+} from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 
-export function parse(tokens: string[]): Expression {
+export function parse(tokens: Token[]): Expression {
     if (tokens.length === 0) {
         throw new ClojureError("Fim inesperado da entrada");
     }
 
     const token = tokens.shift()!;
 
-    if (token === "(") {
-        const list: List = [];
-        while (tokens.length > 0 && tokens[0] !== ")") {
+    if (token.value === "(") {
+        const list: ClojureList = [];
+        list.loc = token.loc;
+
+        while (tokens.length > 0 && tokens[0]!.value !== ")") {
             list.push(parse(tokens));
+        }
+
+        if (tokens.length === 0) {
+            throw new ClojureError("Lista desbalanceada: falta ')'", token.loc);
         }
         tokens.shift();
         return list;
     }
 
-    if (token === ")") {
-        throw new ClojureError("Parênteses ')' inesperado");
+    if (token.value === ")") {
+        throw new ClojureError("Parênteses ')' inesperado", token.loc);
     }
 
-    if (token === "[") {
+    if (token.value === "[") {
         const vector = new ClojureVector();
-        while (tokens.length > 0 && tokens[0] !== "]") {
+        vector.loc = token.loc;
+
+        while (tokens.length > 0 && tokens[0]!.value !== "]") {
             vector.push(parse(tokens));
+        }
+
+        if (tokens.length === 0) {
+            throw new ClojureError("Vetor desbalanceado: falta ']'", token.loc);
         }
         tokens.shift();
         return vector;
     }
 
-    if (token === "]") {
-        throw new ClojureError("Colchete ']' inesperado");
+    if (token.value === "]") {
+        throw new ClojureError("Colchete ']' inesperado", token.loc);
     }
 
-    if (token === "{") {
+    if (token.value === "{") {
         const map = new ClojureMap();
-        while (tokens.length > 0 && tokens[0] !== "}") {
+        map.loc = token.loc;
+
+        while (tokens.length > 0 && tokens[0]!.value !== "}") {
             const key = parse(tokens);
 
-            if (tokens.length === 0 || tokens[0] === "}") {
+            if (tokens.length === 0 || tokens[0]!.value === "}") {
                 throw new ClojureError(
                     "Mapa desbalanceado: falta valor para a última chave",
+                    token.loc,
                 );
             }
 
             const value = parse(tokens);
             map.set(key, value);
         }
+
+        if (tokens.length === 0) {
+            throw new ClojureError("Mapa desbalanceado: falta '}'", token.loc);
+        }
+
         tokens.shift();
         return map;
     }
 
-    if (token === "}") {
-        throw new ClojureError("Chaveta '}' inesperada");
+    if (token.value === "}") {
+        throw new ClojureError("Chaveta '}' inesperada", token.loc);
     }
 
-    if (token === "'") {
+    if (token.value === "'") {
         const nextExpr = parse(tokens);
-        return ["quote", nextExpr];
+        const list: ClojureList = [new ClojureSymbol("quote"), nextExpr];
+        list.loc = token.loc;
+        return list;
     }
 
-    if (token === "`") {
+    if (token.value === "`") {
         const nextExpr = parse(tokens);
-        return ["quasiquote", nextExpr];
+        const list: ClojureList = [new ClojureSymbol("quasiquote"), nextExpr];
+        list.loc = token.loc;
+        return list;
     }
 
-    if (token === "~") {
+    if (token.value === "~") {
         const nextExpr = parse(tokens);
-        return ["unquote", nextExpr];
+        const list: ClojureList = [new ClojureSymbol("unquote"), nextExpr];
+        list.loc = token.loc;
+        return list;
     }
 
-    if (token === "@") {
+    if (token.value === "@") {
         const nextExpr = parse(tokens);
-        return ["deref", nextExpr];
+        const list: ClojureList = [new ClojureSymbol("deref"), nextExpr];
+        list.loc = token.loc;
+        return list;
     }
 
-    if (token.startsWith(":") && token.length > 1) {
-        return new ClojureKeyword(token);
+    if (token.value.startsWith(":") && token.value.length > 1) {
+        const kw = new ClojureKeyword(token.value);
+        kw.loc = token.loc;
+        return kw;
     }
 
-    const number = parseFloat(token);
+    const number = parseFloat(token.value);
     if (!isNaN(number)) {
         return number;
     }
 
-    if (token.startsWith('"') && token.endsWith('"')) {
-        return token;
+    if (token.value.startsWith('"') && token.value.endsWith('"')) {
+        return token.value;
     }
 
-    return token;
+    if (token.value === "true") return true;
+    if (token.value === "false") return false;
+    if (token.value === "nil") return null;
+
+    const sym = new ClojureSymbol(token.value);
+    sym.loc = token.loc;
+    return sym;
 }

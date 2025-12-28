@@ -1,9 +1,21 @@
 import type { Expression } from "../types/index.js";
-import { ClojureVector, ClojureKeyword } from "../types/index.js";
+import {
+    ClojureVector,
+    ClojureKeyword,
+    ClojureSymbol,
+} from "../types/index.js";
 
 export function transpile(ast: Expression): string {
     if (typeof ast === "number") {
         return ast.toString();
+    }
+
+    if (ast instanceof ClojureSymbol) {
+        const val = ast.value;
+        if (val.startsWith("js/")) {
+            return val.slice(3);
+        }
+        return val.replace(/-/g, "_").replace(/\?/g, "$q").replace(/!/g, "$b");
     }
 
     if (typeof ast === "string") {
@@ -27,7 +39,10 @@ export function transpile(ast: Expression): string {
         if (ast.length === 0) return "null";
 
         const [op, ...args] = ast;
-        const opStr = typeof op === "string" ? op : "";
+
+        let opStr = "";
+        if (op instanceof ClojureSymbol) opStr = op.value;
+        else if (typeof op === "string") opStr = op;
 
         if (opStr === "def") {
             const name = transpile(args[0]!);
@@ -45,7 +60,11 @@ export function transpile(ast: Expression): string {
             const body = args[1];
 
             const jsParams = params
-                .map((p) => p.toString().replace(/-/g, "_"))
+                .map((p) => {
+                    const s =
+                        p instanceof ClojureSymbol ? p.value : p.toString();
+                    return s.replace(/-/g, "_");
+                })
                 .join(", ");
 
             return `((${jsParams}) => ${transpile(body!)})`;
@@ -87,7 +106,12 @@ export function transpile(ast: Expression): string {
 
         if (opStr === ".") {
             const [method, target, ...methodArgs] = args;
-            let methodName = method!.toString();
+            let methodName = "";
+            if (method instanceof ClojureSymbol) methodName = method.value;
+            else if (typeof method === "string") methodName = method;
+            else if (method instanceof ClojureKeyword)
+                methodName = method.value;
+
             if (methodName.startsWith(":")) methodName = methodName.slice(1);
             else if (methodName.startsWith('"'))
                 methodName = methodName.slice(1, -1);

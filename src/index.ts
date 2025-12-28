@@ -12,24 +12,54 @@ import {
     ClojureKeyword,
     ClojureMap,
     ClojureMacro,
+    ClojureSymbol,
 } from "./types/index.js";
 import { transpile } from "./core/Transpiler.js";
+import { ClojureError } from "./errors/ClojureError.js";
 
 const globalEnv = new Env();
 Object.keys(initialConfig).forEach((key) => {
     globalEnv.set(key, initialConfig[key]);
 });
 
-function run(source: string) {
-    const tokens = tokenize(source);
-    while (tokens.length > 0) {
-        try {
-            const ast = parse(tokens);
-            const result = trampoline(evaluate(ast, globalEnv));
-        } catch (e: any) {
-            console.error("Erro:", e.message);
-            break;
+function printError(e: any, source?: string) {
+    if (e instanceof ClojureError) {
+        console.error(`\x1b[31mErro: ${e.message}\x1b[0m`);
+
+        if (e.loc) {
+            const { file, start } = e.loc;
+            console.error(`   at ${file}:${start.line}:${start.col}`);
+
+            if (source) {
+                const lines = source.split("\n");
+                const lineIndex = start.line - 1;
+                if (lineIndex > 0) {
+                    console.error(
+                        `\x1b[90m${(start.line - 1).toString().padStart(4)} | ${lines[lineIndex - 1]}\x1b[0m`,
+                    );
+                }
+                console.error(
+                    `\x1b[37m${start.line.toString().padStart(4)} | ${lines[lineIndex]}\x1b[0m`,
+                );
+                const padding = " ".repeat(6 + start.col);
+                console.error(`\x1b[31m${padding}^\x1b[0m`);
+            }
         }
+    } else {
+        console.error("Erro Inesperado:", e);
+    }
+}
+
+function run(source: string, filename: string) {
+    try {
+        const tokens = tokenize(source, filename);
+        const tokensCopy = [...tokens];
+        while (tokensCopy.length > 0) {
+            const ast = parse(tokensCopy);
+            trampoline(evaluate(ast, globalEnv));
+        }
+    } catch (e: any) {
+        printError(e, source);
     }
 }
 
@@ -53,7 +83,7 @@ function startRepl() {
 
             if (input) {
                 try {
-                    const tokens = tokenize(input);
+                    const tokens = tokenize(input, "repl");
 
                     while (tokens.length > 0) {
                         const ast = parse(tokens);
@@ -68,7 +98,7 @@ function startRepl() {
                         }
                     }
                 } catch (e: any) {
-                    console.error("\x1b[31mErro: %s\x1b[0m", e.message);
+                    printError(e, input);
                 }
             }
 
@@ -101,6 +131,10 @@ function formatResult(result: any): string {
         return result.value;
     }
 
+    if (result instanceof ClojureSymbol) {
+        return result.value;
+    }
+
     if (result instanceof ClojureMacro) {
         return `#<Macro params:[${result.params}]>`;
     }
@@ -126,7 +160,7 @@ function compileFile(filepath: string) {
             throw new Error(`Arquivo não encontrado: ${filepath}`);
 
         const source = fs.readFileSync(filepath, "utf-8");
-        const tokens = tokenize(source);
+        const tokens = tokenize(source, filepath);
 
         const expressions = [];
         while (tokens.length > 0) {
@@ -142,7 +176,7 @@ function compileFile(filepath: string) {
         console.log(`\x1b[32m✔ Sucesso! Compilado para: ${outFile}\x1b[0m`);
         console.log(`Execute com: node ${outFile}`);
     } catch (error: any) {
-        console.error("\x1b[31mErro de Compilação:\x1b[0m", error.message);
+        printError(error, fs.readFileSync(filepath, "utf-8"));
     }
 }
 
@@ -159,13 +193,11 @@ if (fileArgs.length > 0) {
     if (isCompile) {
         compileFile(filepath);
     } else {
-        try {
-            if (!fs.existsSync(filepath))
-                throw new Error(`Arquivo não encontrado: ${filepath}`);
+        if (fs.existsSync(filepath)) {
             const fileContent = fs.readFileSync(filepath, "utf-8");
-            run(fileContent);
-        } catch (error: any) {
-            console.error(error.message);
+            run(fileContent, filename!);
+        } else {
+            console.error("Arquivo não encontrado.");
         }
     }
 } else {
