@@ -9,18 +9,34 @@
         "start": "tsx src/index.ts",
         "lint": "eslint .",
         "format": "prettier --write .",
-        "test": "tsx --test tests/**/*.test.ts"
+        "test": "tsx --test tests/**/*.test.ts",
+        "prepare": "husky || true"
+    },
+    "lint-staged": {
+        "**/*.{js,jsx,ts,tsx}": [
+            "prettier --write",
+            "eslint --fix"
+        ],
+        "**/*.{html,json,css,scss,md,mdx}": [
+            "prettier -w"
+        ]
     },
     "keywords": [],
     "author": "Bruno Lima Soares",
     "license": "MIT",
     "packageManager": "pnpm@10.10.0",
     "devDependencies": {
+        "@commitlint/cli": "^20.2.0",
+        "@commitlint/config-conventional": "^20.2.0",
+        "@eslint/eslintrc": "^3.3.3",
+        "@eslint/js": "^9.39.2",
         "@types/node": "^25.0.3",
         "@typescript-eslint/eslint-plugin": "^8.50.0",
         "@typescript-eslint/parser": "^8.50.0",
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",
+        "husky": "^9.1.7",
+        "lint-staged": "^16.2.7",
         "prettier": "^3.7.4",
         "ts-node": "^10.9.2",
         "tsx": "^4.21.0",

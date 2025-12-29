@@ -6,6 +6,7 @@
 
 <em>Um interpretador e transpilador de Clojure robusto e modular escrito em TypeScript.</em>
 
+[![CI](https://github.com/BrunoL28/mini-clojure-ts/actions/workflows/ci.yml/badge.svg)](https://github.com/BrunoL28/mini-clojure-ts/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/BrunoL28/mini-clojure-ts?style=default&logo=opensourceinitiative&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/blob/master/LICENSE)
 [![last-commit](https://img.shields.io/github/last-commit/BrunoL28/mini-clojure-ts?style=default&logo=git&logoColor=white&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts/commits/master)
 [![repo-top-language](https://img.shields.io/github/languages/top/BrunoL28/mini-clojure-ts?style=default&color=A931EC)](https://github.com/BrunoL28/mini-clojure-ts)
@@ -25,10 +26,10 @@
 - [Project Structure](#project-structure)
 - [Project Index](#project-index)
 - [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Usage](#usage)
-  - [Testing](#testing)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Usage](#usage)
+    - [Testing](#testing)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -46,18 +47,18 @@
 
 ## Features
 
-| | Componente | Detalhes |
-| --- | --- | --- |
-| ⚙️ | **Arquitetura** | <ul><li>Design modular que separa Tokenizador, Analisador Sintático, Avaliador, Ambiente e Transpilador</li><li>Sistema de tratamento de erros tipado com classes de erro personalizadas</li><li>Separação clara da Biblioteca Padrão (`stdlib`)</li></ul> |
-| ⚡️ | **Desempenho** | <ul><li>**Otimização de Chamada de Cauda (TCO):** Implementa a técnica de Trampolim para lidar com recursão infinita sem estouro de pilha</li><li>Processamento e avaliação eficientes da AST</li></ul> |
-| 🧠 | **Metaprogramação** | <ul><li>Suporte completo a macros (`defmacro`, `quasiquote`, `unquote`)</li><li>Expansão de macros em tempo de execução</li><li>Capacidade de estender a sintaxe da linguagem dinamicamente</li></ul> |
-| 🌐 | **Interoperabilidade com JS** | <ul><li>Acesso direto a `globalThis` via `js/Namespace`</li><li>Instanciação de classes JS (`new`)</li><li>Encadeamento de métodos e acesso a propriedades (operador `.`)</li></ul> |
-| 📦 | **Estruturas de Dados** | <ul><li>Suporte para listas `()`, vetores `[]` e mapas de hash `{}`</li><li>Palavras-chave (`:key`), átomos (estado mutável) e tipos primitivos</li><li>Operações no estilo imutável via funções da `stdlib`</li></ul> |
-| 🛡️ | **Tratamento de Erros** | <ul><li>Tratamento de exceções Try/Catch</li><li>Tipos de erro personalizados (`ClojureError`, `InvalidParamError`, `ClojureReferenceError`)</li><li>Relatórios de erro detalhados com contexto</li></ul> |
-| 🔄 | **Gerenciamento de Estado** | <ul><li>Átomos para estado mutável com `atom`, `deref`, `reset!`, `swap!`</li><li>Atualizações de estado thread-safe</li></ul> |
-| 🎯 | **Desestruturação** | <ul><li>Suporte completo à desestruturação em vinculações `let` e parâmetros de função</li><li>Suporte para parâmetros rest `&`</li><li>Padrões de desestruturação aninhados</li></ul> |
-| ⚙️ | **Transpilador** | <ul><li>Compila código Clojure para JavaScript executável</li><li>Suporte à transpilação pela linha de comando</li><li>Gera código JS limpo e executável</li></ul> |
-| 💻 | **REPL** | <ul><li>Loop interativo de leitura-avaliação-impressão com realce de sintaxe</li><li>Estado de ambiente persistente</li><li>Relatório de erros detalhado</li></ul> |
+|     | Componente                    | Detalhes                                                                                                                                                                                                                                                   |
+| --- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ⚙️  | **Arquitetura**               | <ul><li>Design modular que separa Tokenizador, Analisador Sintático, Avaliador, Ambiente e Transpilador</li><li>Sistema de tratamento de erros tipado com classes de erro personalizadas</li><li>Separação clara da Biblioteca Padrão (`stdlib`)</li></ul> |
+| ⚡️  | **Desempenho**                | <ul><li>**Otimização de Chamada de Cauda (TCO):** Implementa a técnica de Trampolim para lidar com recursão infinita sem estouro de pilha</li><li>Processamento e avaliação eficientes da AST</li></ul>                                                    |
+| 🧠  | **Metaprogramação**           | <ul><li>Suporte completo a macros (`defmacro`, `quasiquote`, `unquote`)</li><li>Expansão de macros em tempo de execução</li><li>Capacidade de estender a sintaxe da linguagem dinamicamente</li></ul>                                                      |
+| 🌐  | **Interoperabilidade com JS** | <ul><li>Acesso direto a `globalThis` via `js/Namespace`</li><li>Instanciação de classes JS (`new`)</li><li>Encadeamento de métodos e acesso a propriedades (operador `.`)</li></ul>                                                                        |
+| 📦  | **Estruturas de Dados**       | <ul><li>Suporte para listas `()`, vetores `[]` e mapas de hash `{}`</li><li>Palavras-chave (`:key`), átomos (estado mutável) e tipos primitivos</li><li>Operações no estilo imutável via funções da `stdlib`</li></ul>                                     |
+| 🛡️  | **Tratamento de Erros**       | <ul><li>Tratamento de exceções Try/Catch</li><li>Tipos de erro personalizados (`ClojureError`, `InvalidParamError`, `ClojureReferenceError`)</li><li>Relatórios de erro detalhados com contexto</li></ul>                                                  |
+| 🔄  | **Gerenciamento de Estado**   | <ul><li>Átomos para estado mutável com `atom`, `deref`, `reset!`, `swap!`</li><li>Atualizações de estado thread-safe</li></ul>                                                                                                                             |
+| 🎯  | **Desestruturação**           | <ul><li>Suporte completo à desestruturação em vinculações `let` e parâmetros de função</li><li>Suporte para parâmetros rest `&`</li><li>Padrões de desestruturação aninhados</li></ul>                                                                     |
+| ⚙️  | **Transpilador**              | <ul><li>Compila código Clojure para JavaScript executável</li><li>Suporte à transpilação pela linha de comando</li><li>Gera código JS limpo e executável</li></ul>                                                                                         |
+| 💻  | **REPL**                      | <ul><li>Loop interativo de leitura-avaliação-impressão com realce de sintaxe</li><li>Estado de ambiente persistente</li><li>Relatório de erros detalhado</li></ul>                                                                                         |
 
 ---
 
@@ -321,28 +322,32 @@
 
 This project requires the following dependencies:
 
-* **Runtime:** [Node.js](https://nodejs.org/) (v18+)
-* **Package Manager:** [pnpm](https://pnpm.io/) (recommended) or npm
+- **Runtime:** [Node.js](https://nodejs.org/) (v18+)
+- **Package Manager:** [pnpm](https://pnpm.io/) (recommended) or npm
 
 ### Installation
 
 1. **Clone the repository:**
+
 ```
 ❯ git clone https://github.com/BrunoL28/mini-clojure-ts.git
 ```
 
 2. **Navigate to the project directory:**
+
 ```
 ❯ cd mini-clojure-ts
 ```
 
 3. **Install the dependencies:**
-**Using pnpm:**
+   **Using pnpm:**
+
 ```
 ❯ pnpm install
 ```
 
 **Using npm:**
+
 ```
 ❯ npm install
 ```
@@ -350,20 +355,25 @@ This project requires the following dependencies:
 ### Usage
 
 **Start the REPL (Interactive Mode):**
+
 ```
 ❯ pnpm start
 ```
 
 **Execute a Clojure file:**
+
 ```
 ❯ pnpm start -- tests/final.clj
 ```
 
 **Transpile a Clojure file to JavaScript:**
+
 ```
 ❯ pnpm start -- -t tests/compilador.clj
 ```
+
 or
+
 ```
 ❯ pnpm start -- --transpile tests/compilador.clj
 ```
@@ -399,19 +409,19 @@ The project includes a comprehensive suite of `.clj` files to test various featu
 
 ## Roadmap
 
-* [x] **v1.0.0:** TCO, Macros, Maps, Vectors, JS Interop
-* [x] **v1.1.0:** Atoms (State Management)
-* [x] **v1.2.0:** Try/Catch Error Handling
-* [x] **v1.3.0:** Destructuring support
-* [x] **v2.0.0:** Transpiler (Compile to JS)
+- [x] **v1.0.0:** TCO, Macros, Maps, Vectors, JS Interop
+- [x] **v1.1.0:** Atoms (State Management)
+- [x] **v1.2.0:** Try/Catch Error Handling
+- [x] **v1.3.0:** Destructuring support
+- [x] **v2.0.0:** Transpiler (Compile to JS)
 
 ---
 
 ## Contributing
 
-* **💬 [Join the Discussions](https://github.com/BrunoL28/mini-clojure-ts/discussions):** Share your insights, provide feedback, or ask questions.
-* **🐛 [Report Issues](https://github.com/BrunoL28/mini-clojure-ts/issues):** Submit bugs found or log feature requests.
-* **💡 [Submit Pull Requests](https://github.com/BrunoL28/mini-clojure-ts/pulls):** Review open PRs, and submit your own PRs.
+- **💬 [Join the Discussions](https://github.com/BrunoL28/mini-clojure-ts/discussions):** Share your insights, provide feedback, or ask questions.
+- **🐛 [Report Issues](https://github.com/BrunoL28/mini-clojure-ts/issues):** Submit bugs found or log feature requests.
+- **💡 [Submit Pull Requests](https://github.com/BrunoL28/mini-clojure-ts/pulls):** Review open PRs, and submit your own PRs.
 
 <details closed>
 <summary>Contributing Guidelines</summary>
@@ -419,9 +429,11 @@ The project includes a comprehensive suite of `.clj` files to test various featu
 1. **Fork the Repository**: Start by forking the project repository to your github account.
 2. **Clone Locally**: Clone the forked repository to your local machine.
 3. **Create a New Branch**: Always work on a new branch.
+
 ```
 git checkout -b feature/my-new-feature
 ```
+
 4. **Make Your Changes**: Develop and test your changes locally.
 5. **Commit Your Changes**: Commit with a clear message.
 6. **Push to github**: Push the changes to your forked repository.
@@ -439,9 +451,9 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## Acknowledgments
 
-* Inspired by **Rich Hickey's Clojure**.
-* Built with TypeScript for type safety and developer experience.
-* Thanks to all contributors and testers who helped shape this project.
+- Inspired by **Rich Hickey's Clojure**.
+- Built with TypeScript for type safety and developer experience.
+- Thanks to all contributors and testers who helped shape this project.
 
 <div align="right">
 [⬆ Back to Top](#top)

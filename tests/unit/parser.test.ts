@@ -5,7 +5,6 @@ import { parse } from "../../src/core/Parser.js";
 import {
     ClojureVector,
     ClojureMap,
-    ClojureKeyword,
     ClojureSymbol,
 } from "../../src/types/index.js";
 

@@ -1,4 +1,4 @@
-import { test, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import assert from "node:assert";
 import { tokenize } from "../../src/core/Tokenizer.js";
 import { ClojureError } from "../../src/errors/ClojureError.js";

@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import type { Token, SourceLocation } from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 
@@ -11,7 +12,7 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
         /"(?:\\.|[^\\"\n])*"?|[\(\)\[\]\{\}'`~@]|;.*|[^\s,()\[\]\{\}'`~@]+/y;
 
     while (current < input.length) {
-        let char = input[current];
+        const char = input[current];
 
         if (/\s/.test(char!) || char === ",") {
             if (char === "\n") {

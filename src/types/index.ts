@@ -101,6 +101,7 @@ export type Expression =
     | ClojureMap
     | ClojureAtom;
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface List extends Array<Expression> {}
 
 export interface UserFunction {

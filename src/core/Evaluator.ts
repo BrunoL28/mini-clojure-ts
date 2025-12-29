@@ -1,5 +1,5 @@
 import type { Expression } from "../types/index.js";
-import type { UserFunction, ClojureList } from "../types/index.js";
+import type { UserFunction } from "../types/index.js";
 import {
     ClojureVector,
     ClojureKeyword,
@@ -59,7 +59,7 @@ function bind(env: Env, shape: any, value: any) {
 
         let valIndex = 0;
         for (let i = 0; i < shape.length; i++) {
-            let param = shape[i];
+            const param = shape[i];
 
             const paramName =
                 param instanceof ClojureSymbol ? param.value : param;
@@ -165,7 +165,8 @@ export function evaluate(x: Expression, env: Env): any {
             if (opName === "quote") return args[0];
 
             if (opName === "do") {
-                let result = null;
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                const result = null;
                 for (let i = 0; i < args.length - 1; i++) {
                     trampoline(evaluate(args[i]!, env));
                 }
@@ -232,6 +233,7 @@ export function evaluate(x: Expression, env: Env): any {
                     return result;
                 } catch (e: any) {
                     if (catchClause) {
+                        // eslint-disable-next-line @typescript-eslint/no-unused-vars
                         const [_, errVarName, errBody] = catchClause;
                         let varName = errVarName;
                         if (errVarName instanceof ClojureSymbol)
