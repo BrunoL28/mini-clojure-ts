@@ -97,7 +97,7 @@ export function transpile(ast: Expression): string {
         }
 
         if (opStr === "=") {
-            return `(${transpile(args[0]!)} === ${transpile(args[1]!)})`;
+            return `MCLJ_equals(${transpile(args[0]!)}, ${transpile(args[1]!)})`;
         }
 
         if (opStr === "print" || opStr === "println") {

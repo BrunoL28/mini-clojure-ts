@@ -10,6 +10,7 @@ import {
     ClojureSymbol,
 } from "../types/index.js";
 import { prStr } from "../core/Printer.js";
+import { equals } from "../core/Runtime.js";
 
 function assertNumber(val: any, operation: string) {
     if (typeof val !== "number" || isNaN(val)) {
@@ -92,7 +93,9 @@ export const initialConfig: { [key: string]: any } = {
     },
 
     // --- LÓGICA / COMPARAÇÃO ---
-    "=": (a: any, b: any) => a === b, // Igualdade genérica pode aceitar qualquer coisa
+    "=": (a: any, b: any) => equals(a, b),
+    "identical?": (a: any, b: any) => a === b,
+    "not=": (a: any, b: any) => !equals(a, b),
     not: (a: any) => (a === false || a === null ? true : false),
 
     // --- STRING / IO ---

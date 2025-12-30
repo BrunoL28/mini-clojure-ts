@@ -6,14 +6,9 @@ import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
 import { transpile as transpileExpr } from "./core/Transpiler.js";
-import {
-    ClojureVector,
-    ClojureKeyword,
-    ClojureMap,
-    ClojureMacro,
-    type Expression,
-} from "./types/index.js";
+import { type Expression } from "./types/index.js";
 import { prStr } from "./core/Printer.js";
+import { runtimeScript } from "./core/Runtime.js";
 
 // ----- API Types ----- //
 
@@ -99,8 +94,9 @@ export function runFile(filepath: string, opts: RunOptions = {}): any {
 export function compileSource(source: string): string {
     const expressions = parse(source);
     const jsHeader = `// Compilado por Mini-Clojure-TS\n`;
+    // INJEÇÃO DO RUNTIME AQUI
     const jsBody = expressions.map(transpileExpr).join(";\n") + ";";
-    return jsHeader + jsBody;
+    return jsHeader + runtimeScript + "\n" + jsBody;
 }
 
 /**
