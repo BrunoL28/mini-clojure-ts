@@ -7,6 +7,7 @@ import {
     ClojureKeyword,
     ClojureMap,
     ClojureAtom,
+    ClojureSymbol,
 } from "../types/index.js";
 import { prStr } from "../core/Printer.js";
 
@@ -16,6 +17,26 @@ function assertNumber(val: any, operation: string) {
             `Erro em '${operation}': esperava número, recebeu ${prStr(val)} (${typeof val})`,
         );
     }
+}
+
+function resolveKey(map: ClojureMap, key: any): any {
+    if (key instanceof ClojureKeyword || key instanceof ClojureSymbol) {
+        if (map.has(key)) return key;
+
+        for (const k of map.keys()) {
+            if (
+                (k instanceof ClojureKeyword &&
+                    key instanceof ClojureKeyword &&
+                    k.value === key.value) ||
+                (k instanceof ClojureSymbol &&
+                    key instanceof ClojureSymbol &&
+                    k.value === key.value)
+            ) {
+                return k;
+            }
+        }
+    }
+    return key;
 }
 
 export const initialConfig: { [key: string]: any } = {
@@ -146,27 +167,33 @@ export const initialConfig: { [key: string]: any } = {
     "hash-map": (...args: any[]) => {
         const map = new ClojureMap();
         for (let i = 0; i < args.length; i += 2) {
-            map.set(args[i], args[i + 1]);
+            const key = args[i];
+            const val = args[i + 1];
+            const existingKey = resolveKey(map, key);
+            map.set(existingKey, val);
         }
         return map;
     },
+
     get: (map: any, key: any, notFound: any = null) => {
         if (!(map instanceof ClojureMap)) return notFound;
         if (map.has(key)) return map.get(key);
-        if (key instanceof ClojureKeyword) {
-            for (const [k, v] of map) {
-                if (k instanceof ClojureKeyword && k.value === key.value)
-                    return v;
-            }
-        }
+        const existingKey = resolveKey(map, key);
+        if (map.has(existingKey)) return map.get(existingKey);
+
         return notFound;
     },
+
     assoc: (map: any, ...args: any[]) => {
         if (!(map instanceof ClojureMap))
             throw new Error("assoc requer um mapa");
         const newMap = new ClojureMap(map);
         for (let i = 0; i < args.length; i += 2) {
-            newMap.set(args[i], args[i + 1]);
+            const key = args[i];
+            const val = args[i + 1];
+            const keyToSet = resolveKey(newMap, key);
+
+            newMap.set(keyToSet, val);
         }
         return newMap;
     },
