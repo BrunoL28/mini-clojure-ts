@@ -78,7 +78,7 @@ export const initialConfig: { [key: string]: any } = {
     str: (...args: any[]) => args.map((a) => prStr(a, false)).join(""),
     print: (...args: any[]) => {
         const output = args.map((a) => prStr(a, false)).join(" ");
-        process.stdout.write(output);
+        console.log(output);
         return null;
     },
     println: (...args: any[]) => {
