@@ -40,6 +40,72 @@ function evalQuasiquote(ast: any, env: Env): any {
     return ast;
 }
 
+// Verifica estaticamente se os parâmetros são válidos
+function validateBindingShape(shape: any) {
+    if (shape instanceof ClojureSymbol) return;
+
+    if (typeof shape === "string") {
+        if (shape === "&") return;
+        throw new InvalidParamError(
+            `Parâmetro inválido: string '${shape}' não permitida. Use símbolos.`,
+        );
+    }
+
+    if (shape instanceof ClojureVector || Array.isArray(shape)) {
+        for (const item of shape) {
+            validateBindingShape(item);
+        }
+        return;
+    }
+
+    if (shape instanceof ClojureMap) {
+        for (const [key, val] of shape) {
+            // Suporte a chaves especiais :keys e :as
+            if (key instanceof ClojureKeyword) {
+                // CORREÇÃO: Comparar com ":keys" (incluindo o prefixo)
+                if (key.value === ":keys") {
+                    if (
+                        !(val instanceof ClojureVector) &&
+                        !Array.isArray(val)
+                    ) {
+                        throw new InvalidParamError(
+                            ":keys deve receber um vetor de símbolos.",
+                        );
+                    }
+                    for (const sym of val) {
+                        if (!(sym instanceof ClojureSymbol)) {
+                            throw new InvalidParamError(
+                                "Vetor de :keys deve conter apenas símbolos.",
+                            );
+                        }
+                    }
+                    continue;
+                }
+                // CORREÇÃO: Comparar com ":as"
+                if (key.value === ":as") {
+                    if (!(val instanceof ClojureSymbol)) {
+                        throw new InvalidParamError(
+                            ":as deve receber um símbolo.",
+                        );
+                    }
+                    continue;
+                }
+
+                throw new InvalidParamError(
+                    `Keyword '${key}' não é permitida como alvo de binding (apenas :keys e :as).`,
+                );
+            }
+
+            validateBindingShape(key);
+        }
+        return;
+    }
+
+    throw new InvalidParamError(
+        `Parâmetro inválido na definição da função: '${shape}'. Esperado símbolo, vetor ou mapa.`,
+    );
+}
+
 function bind(env: Env, shape: any, value: any) {
     let key = shape;
     if (shape instanceof ClojureSymbol) key = shape.value;
@@ -53,14 +119,13 @@ function bind(env: Env, shape: any, value: any) {
     if (Array.isArray(shape) || shape instanceof ClojureVector) {
         if (!Array.isArray(value) && !(value instanceof ClojureVector)) {
             throw new InvalidParamError(
-                `Destructuring: esperava uma coleção, recebeu ${value}`,
+                `Destructuring: esperava uma coleção sequencial, recebeu ${value}`,
             );
         }
 
         let valIndex = 0;
         for (let i = 0; i < shape.length; i++) {
             const param = shape[i];
-
             const paramName =
                 param instanceof ClojureSymbol ? param.value : param;
 
@@ -68,8 +133,26 @@ function bind(env: Env, shape: any, value: any) {
                 const nextParam = shape[i + 1];
                 if (!nextParam)
                     throw new InvalidParamError("Esperado nome após '&'");
+
                 const remaining = value.slice(valIndex);
-                bind(env, nextParam, new ClojureVector(...remaining));
+
+                if (nextParam instanceof ClojureMap) {
+                    if (remaining.length % 2 !== 0) {
+                        throw new InvalidParamError(
+                            "Argumentos variádicos para destructuring de mapa devem ter número par de elementos.",
+                        );
+                    }
+
+                    const argsMap = new ClojureMap();
+                    for (let j = 0; j < remaining.length; j += 2) {
+                        argsMap.set(remaining[j], remaining[j + 1]);
+                    }
+
+                    bind(env, nextParam, argsMap);
+                } else {
+                    bind(env, nextParam, new ClojureVector(...remaining));
+                }
+
                 break;
             }
 
@@ -77,7 +160,82 @@ function bind(env: Env, shape: any, value: any) {
             bind(env, param, valToBind);
             valIndex++;
         }
+        return;
     }
+
+    if (shape instanceof ClojureMap) {
+        if (!(value instanceof ClojureMap)) {
+            if (value === null) return;
+            throw new InvalidParamError(
+                `Destructuring de mapa espera um mapa, recebeu: ${value}`,
+            );
+        }
+
+        for (const [target, source] of shape) {
+            // --- TRATAMENTO DE :KEYS ---
+            // CORREÇÃO: Check de ":keys"
+            if (target instanceof ClojureKeyword && target.value === ":keys") {
+                const symbols = source;
+                for (const sym of symbols) {
+                    if (sym instanceof ClojureSymbol) {
+                        // CORREÇÃO: Adiciona ":" manual ao criar a keyword de busca
+                        const lookupKey = new ClojureKeyword(":" + sym.value);
+
+                        let extractedValue = value.get(lookupKey);
+                        if (extractedValue === undefined) {
+                            for (const [k, v] of value) {
+                                if (
+                                    k instanceof ClojureKeyword &&
+                                    k.value === lookupKey.value
+                                ) {
+                                    extractedValue = v;
+                                    break;
+                                }
+                            }
+                        }
+
+                        bind(env, sym, extractedValue ?? null);
+                    }
+                }
+                continue;
+            }
+
+            // --- TRATAMENTO DE :AS ---
+            // CORREÇÃO: Check de ":as"
+            if (target instanceof ClojureKeyword && target.value === ":as") {
+                const aliasSymbol = source;
+                bind(env, aliasSymbol, value);
+                continue;
+            }
+
+            // --- TRATAMENTO PADRÃO ---
+            let extractedValue = value.get(source);
+
+            if (extractedValue === undefined) {
+                for (const [k, v] of value) {
+                    const keysMatch =
+                        (k instanceof ClojureKeyword &&
+                            source instanceof ClojureKeyword &&
+                            k.value === source.value) ||
+                        (k instanceof ClojureSymbol &&
+                            source instanceof ClojureSymbol &&
+                            k.value === source.value);
+
+                    if (keysMatch) {
+                        extractedValue = v;
+                        break;
+                    }
+                }
+            }
+
+            bind(env, target, extractedValue ?? null);
+        }
+        return;
+    }
+
+    throw new InvalidParamError(
+        `Parâmetro inválido para binding: '${shape}'. Esperado símbolo, vetor ou mapa.`,
+    );
 }
 
 export function evaluate(x: Expression, env: Env): any {
@@ -139,6 +297,39 @@ export function evaluate(x: Expression, env: Env): any {
             let opName = op;
             if (op instanceof ClojureSymbol) opName = op.value;
 
+            if (opName === "defn") {
+                const [name, params, ...body] = args;
+
+                let fnName = name;
+                if (name instanceof ClojureSymbol) fnName = name.value;
+
+                if (typeof fnName !== "string") {
+                    throw new InvalidParamError(
+                        "O primeiro argumento de 'defn' deve ser um símbolo (nome).",
+                    );
+                }
+
+                if (!(params instanceof ClojureVector)) {
+                    throw new InvalidParamError(
+                        "O segundo argumento de 'defn' deve ser um VETOR [...] de parâmetros.",
+                    );
+                }
+
+                let fnBody: any = null;
+                if (body.length > 1) {
+                    fnBody = ["do", ...body];
+                } else if (body.length === 1) {
+                    fnBody = body[0];
+                }
+
+                const fnExpr = ["fn", params, fnBody];
+                const fnValue = trampoline(evaluate(fnExpr, env));
+
+                env.set(fnName, fnValue);
+
+                return fnName;
+            }
+
             if (opName === "def") {
                 const [name, valueExpr] = args;
                 let varName = name;
@@ -178,6 +369,14 @@ export function evaluate(x: Expression, env: Env): any {
 
             if (opName === "fn") {
                 const [params, body] = args;
+
+                if (!(params instanceof ClojureVector)) {
+                    throw new InvalidParamError(
+                        "Os parâmetros de 'fn' devem ser um vetor.",
+                    );
+                }
+                validateBindingShape(params);
+
                 return {
                     params: params as any[],
                     body: body!,

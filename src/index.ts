@@ -13,6 +13,7 @@ import {
     ClojureMacro,
     type Expression,
 } from "./types/index.js";
+import { prStr } from "./core/Printer.js";
 
 // ----- API Types ----- //
 
@@ -134,43 +135,7 @@ export function compileFile(
  * @return {string} O resultado formatado como string.
  */
 export function formatResult(result: any): string {
-    if (result instanceof ClojureVector) {
-        return `[${result.map(formatResult).join(" ")}]`;
-    }
-
-    if (result instanceof ClojureMap) {
-        const entries = [];
-        for (const [k, v] of result) {
-            entries.push(`${formatResult(k)} ${formatResult(v)}`);
-        }
-        return `{${entries.join(" ")}}`;
-    }
-
-    if (result instanceof ClojureKeyword) {
-        return result.value;
-    }
-
-    if (result instanceof ClojureMacro) {
-        return `#<Macro params:[${result.params}]>`;
-    }
-
-    if (Array.isArray(result)) {
-        return `(${result.map(formatResult).join(" ")})`;
-    }
-
-    if (typeof result === "string") {
-        return `"${result}"`;
-    }
-
-    if (result && typeof result === "object" && "params" in result) {
-        return `#<Function params:[${result.params}]>`;
-    }
-
-    if (result === null) return "nil";
-    if (result === true) return "true";
-    if (result === false) return "false";
-
-    return String(result);
+    return prStr(result, true);
 }
 
 export { Env, evaluate, tokenize, trampoline };

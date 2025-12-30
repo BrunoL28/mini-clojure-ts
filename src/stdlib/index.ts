@@ -8,28 +8,91 @@ import {
     ClojureMap,
     ClojureAtom,
 } from "../types/index.js";
+import { prStr } from "../core/Printer.js";
+
+function assertNumber(val: any, operation: string) {
+    if (typeof val !== "number" || isNaN(val)) {
+        throw new InvalidParamError(
+            `Erro em '${operation}': esperava número, recebeu ${prStr(val)} (${typeof val})`,
+        );
+    }
+}
 
 export const initialConfig: { [key: string]: any } = {
-    "+": (...args: number[]) => args.reduce((a, b) => a + b, 0),
-    "-": (a: number, b: number) => a - b,
-    "*": (...args: number[]) => args.reduce((a, b) => a * b, 1),
-    "/": (a: number, b: number) => a / b,
-    ">": (a: number, b: number) => a > b,
-    "<": (a: number, b: number) => a < b,
-    "=": (a: any, b: any) => a === b,
-    ">=": (a: number, b: number) => a >= b,
-    "<=": (a: number, b: number) => a <= b,
-    "%": (a: number, b: number) => a % b,
+    "+": (...args: any[]) => {
+        return args.reduce((a, b) => {
+            assertNumber(a, "+");
+            assertNumber(b, "+");
+            return a + b;
+        }, 0);
+    },
+    "-": (a: any, b: any) => {
+        assertNumber(a, "-");
+        assertNumber(b, "-");
+        return a - b;
+    },
+    "*": (...args: any[]) => {
+        return args.reduce((a, b) => {
+            assertNumber(a, "*");
+            assertNumber(b, "*");
+            return a * b;
+        }, 1);
+    },
+    "/": (a: any, b: any) => {
+        assertNumber(a, "/");
+        assertNumber(b, "/");
+        if (b === 0) throw new Error("Divisão por zero");
+        return a / b;
+    },
+    "%": (a: any, b: any) => {
+        assertNumber(a, "%");
+        assertNumber(b, "%");
+        return a % b;
+    },
+    ">": (a: any, b: any) => {
+        assertNumber(a, ">");
+        assertNumber(b, ">");
+        return a > b;
+    },
+    "<": (a: any, b: any) => {
+        assertNumber(a, "<");
+        assertNumber(b, "<");
+        return a < b;
+    },
+    ">=": (a: any, b: any) => {
+        assertNumber(a, ">=");
+        assertNumber(b, ">=");
+        return a >= b;
+    },
+    "<=": (a: any, b: any) => {
+        assertNumber(a, "<=");
+        assertNumber(b, "<=");
+        return a <= b;
+    },
+
+    // --- LÓGICA / COMPARAÇÃO ---
+    "=": (a: any, b: any) => a === b, // Igualdade genérica pode aceitar qualquer coisa
     not: (a: any) => (a === false || a === null ? true : false),
-    str: (...args: any[]) => args.join(""),
+
+    // --- STRING / IO ---
+    str: (...args: any[]) => args.map((a) => prStr(a, false)).join(""),
     print: (...args: any[]) => {
-        console.log(...args);
+        const output = args.map((a) => prStr(a, false)).join(" ");
+        process.stdout.write(output);
         return null;
     },
     println: (...args: any[]) => {
-        console.log(...args);
+        const output = args.map((a) => prStr(a, false)).join(" ");
+        console.log(output);
         return null;
     },
+    prn: (...args: any[]) => {
+        const output = args.map((a) => prStr(a, true)).join(" ");
+        console.log(output);
+        return null;
+    },
+
+    // --- COLEÇÕES ---
     list: (...args: any[]) => args,
     first: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a[0] : null),
     rest: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a.slice(1) : []),
@@ -78,6 +141,8 @@ export const initialConfig: { [key: string]: any } = {
         return coll[index];
     },
     "vector?": (x: any) => x instanceof ClojureVector,
+
+    // --- MAPAS ---
     "hash-map": (...args: any[]) => {
         const map = new ClojureMap();
         for (let i = 0; i < args.length; i += 2) {
@@ -113,6 +178,8 @@ export const initialConfig: { [key: string]: any } = {
         if (!(map instanceof ClojureMap)) return [];
         return new ClojureVector(...map.values());
     },
+
+    // --- INTEROP & ATOMS ---
     new: (ClassRef: any, ...args: any[]) => {
         if (typeof ClassRef !== "function") {
             throw new InvalidParamError(
