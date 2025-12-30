@@ -407,13 +407,40 @@ The project includes a comprehensive suite of `.clj` files to test various featu
 
 ---
 
+### API Pública (Embed)
+
+O Mini-Clojure-TS pode ser usado como uma biblioteca em outros projetos TypeScript/JavaScript.
+
+```typescript
+import { runSource, createGlobalEnv, parse } from "./src/index.js";
+
+// 1. Execução Simples
+const code = "(+ 10 20)";
+const result = runSource(code);
+console.log(result); // 30
+
+// 2. Ambiente Personalizado
+const env = createGlobalEnv();
+runSource("(def x 42)", { env });
+const x = runSource("x", { env });
+console.log(x); // 42
+
+// 3. Acesso à AST
+const ast = parse('(print "Ola")');
+console.log(ast);
+// [ ['print', "Ola"] ]
+```
+
+---
+
 ## Roadmap
 
-- [x] **v1.0.0:** TCO, Macros, Maps, Vectors, JS Interop
-- [x] **v1.1.0:** Atoms (State Management)
-- [x] **v1.2.0:** Try/Catch Error Handling
-- [x] **v1.3.0:** Destructuring support
-- [x] **v2.0.0:** Transpiler (Compile to JS)
+- [] **v3.0:** Rastreabilidade de Erros, CI e testes automatizados, Separação Engine/CLI, Multiline + Histórico no REPL
+- [] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
+- [] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
+- [] **v6.0:** Loader e Cache, Namespaces, Empacotamento
+- [] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
+- [] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop
 
 ---
 
@@ -455,6 +482,10 @@ Distributed under the MIT License. See `LICENSE` for more information.
 - Built with TypeScript for type safety and developer experience.
 - Thanks to all contributors and testers who helped shape this project.
 
+<div id="bottom">
+
 <div align="right">
+
 [⬆ Back to Top](#top)
+
 </div>

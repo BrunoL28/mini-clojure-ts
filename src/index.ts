@@ -1,120 +1,139 @@
 import * as fs from "fs";
-import * as path from "path";
-import * as readline from "readline";
 import { Env } from "./core/Environment.js";
 import { tokenize } from "./core/Tokenizer.js";
-import { parse } from "./core/Parser.js";
+import { parse as parseExpr } from "./core/Parser.js";
 import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
+import { transpile as transpileExpr } from "./core/Transpiler.js";
 import {
     ClojureVector,
     ClojureKeyword,
     ClojureMap,
     ClojureMacro,
-    ClojureSymbol,
+    type Expression,
 } from "./types/index.js";
-import { transpile } from "./core/Transpiler.js";
-import { ClojureError } from "./errors/ClojureError.js";
 
-const globalEnv = new Env();
-Object.keys(initialConfig).forEach((key) => {
-    globalEnv.set(key, initialConfig[key]);
-});
+// ----- API Types ----- //
 
-function printError(e: any, source?: string) {
-    if (e instanceof ClojureError) {
-        console.error(`\x1b[31mErro: ${e.message}\x1b[0m`);
-
-        if (e.loc) {
-            const { file, start } = e.loc;
-            console.error(`   at ${file}:${start.line}:${start.col}`);
-
-            if (source) {
-                const lines = source.split("\n");
-                const lineIndex = start.line - 1;
-                if (lineIndex > 0) {
-                    console.error(
-                        `\x1b[90m${(start.line - 1).toString().padStart(4)} | ${lines[lineIndex - 1]}\x1b[0m`,
-                    );
-                }
-                console.error(
-                    `\x1b[37m${start.line.toString().padStart(4)} | ${lines[lineIndex]}\x1b[0m`,
-                );
-                const padding = " ".repeat(6 + start.col);
-                console.error(`\x1b[31m${padding}^\x1b[0m`);
-            }
-        }
-    } else {
-        console.error("Erro Inesperado:", e);
-    }
+export interface RunOptions {
+    env?: Env;
 }
 
-function run(source: string, filename: string) {
-    try {
-        const tokens = tokenize(source, filename);
-        const tokensCopy = [...tokens];
-        while (tokensCopy.length > 0) {
-            const ast = parse(tokensCopy);
-            trampoline(evaluate(ast, globalEnv));
-        }
-    } catch (e: any) {
-        printError(e, source);
-    }
+export interface CompileOptions {
+    outFile?: string;
 }
 
-function startRepl() {
-    const rl = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
+// ----- Public API ----- //
+
+/**
+ * Cria um novo ambiente global com a configuração inicial (stdlib).
+ *
+ * @return {Env} Um novo ambiente global configurado.
+ */
+export function createGlobalEnv(): Env {
+    const env = new Env();
+    Object.keys(initialConfig).forEach((key) => {
+        env.set(key, initialConfig[key]);
     });
-    console.log("\x1b[36m%s\x1b[0m", "Mini-Clojure REPL v1.0");
-    console.log("Digite 'exit' ou pressione Ctrl+C para sair.");
-    console.log("-----------------------------------------");
-
-    const prompt = () => {
-        rl.question("\x1b[33muser>\x1b[0m ", (line) => {
-            const input = line.trim();
-
-            if (input === "exit") {
-                rl.close();
-                return;
-            }
-
-            if (input) {
-                try {
-                    const tokens = tokenize(input, "repl");
-
-                    while (tokens.length > 0) {
-                        const ast = parse(tokens);
-                        const result = trampoline(evaluate(ast, globalEnv));
-                        if (result !== null) {
-                            console.log(
-                                "\x1b[32m=> %s\x1b[0m",
-                                formatResult(result),
-                            );
-                        } else {
-                            console.log("\x1b[90mnil\x1b[0m");
-                        }
-                    }
-                } catch (e: any) {
-                    printError(e, input);
-                }
-            }
-
-            prompt();
-        });
-    };
-
-    prompt();
-
-    rl.on("close", () => {
-        console.log("\nAté logo! 👋");
-        process.exit(0);
-    });
+    return env;
 }
 
-function formatResult(result: any): string {
+/**
+ * Tokeniza e analisa uma string de código-fonte em expressões Clojure.
+ *
+ * @param {string} source A string de código-fonte a ser analisada.
+ * @return {Expression[]} Um array de expressões analisadas.
+ */
+export function parse(source: string): Expression[] {
+    const tokens = tokenize(source);
+    const expressions: Expression[] = [];
+    while (tokens.length > 0) {
+        expressions.push(parseExpr(tokens));
+    }
+    return expressions;
+}
+
+/**
+ * Executa o código-fonte fornecido em um ambiente Clojure.
+ *
+ * @param {string} source O código-fonte a ser executado.
+ * @param {RunOptions} [opts] Opções para execução, incluindo o ambiente.
+ * @return {any} O resultado da última expressão avaliada.
+ */
+export function runSource(source: string, opts: RunOptions = {}): any {
+    const env = opts.env || createGlobalEnv();
+    const expressions = parse(source);
+    let lastResult = null;
+
+    for (const expr of expressions) {
+        lastResult = trampoline(evaluate(expr, env));
+    }
+
+    return lastResult;
+}
+
+/**
+ * Executa o código-fonte de um arquivo em um ambiente Clojure.
+ *
+ * @param {string} filepath O caminho do arquivo a ser executado.
+ * @param {RunOptions} [opts] Opções para execução, incluindo o ambiente.
+ * @throws {Error} Se o arquivo não for encontrado.
+ * @return {any} O resultado da última expressão avaliada.
+ */
+export function runFile(filepath: string, opts: RunOptions = {}): any {
+    if (!fs.existsSync(filepath)) {
+        throw new Error(`Arquivo não encontrado: ${filepath}`);
+    }
+    const source = fs.readFileSync(filepath, "utf-8");
+    return runSource(source, opts);
+}
+
+/**
+ * Compila o código-fonte fornecido para JavaScript.
+ *
+ * @param {string} source O código-fonte a ser compilado.
+ * @return {string} O código JavaScript compilado.
+ */
+export function compileSource(source: string): string {
+    const expressions = parse(source);
+    const jsHeader = `// Compilado por Mini-Clojure-TS\n`;
+    const jsBody = expressions.map(transpileExpr).join(";\n") + ";";
+    return jsHeader + jsBody;
+}
+
+/**
+ * Compila o código-fonte de um arquivo para JavaScript.
+ *
+ * @param {string} filepath O caminho do arquivo a ser compilado.
+ * @param {CompileOptions} [opts] Opções para compilação, incluindo o arquivo de saída.
+ * @throws {Error} Se o arquivo não for encontrado.
+ * @return {string} O código JavaScript compilado.
+ */
+export function compileFile(
+    filepath: string,
+    opts: CompileOptions = {},
+): string {
+    if (!fs.existsSync(filepath)) {
+        throw new Error(`Arquivo não encontrado: ${filepath}`);
+    }
+    const source = fs.readFileSync(filepath, "utf-8");
+    const jsCode = compileSource(source);
+
+    if (opts.outFile) {
+        fs.writeFileSync(opts.outFile, jsCode);
+    }
+
+    return jsCode;
+}
+
+/**
+ * Formata o resultado de uma avaliação para uma string legível.
+ *
+ * @param {any} result O resultado a ser formatado.
+ * @return {string} O resultado formatado como string.
+ */
+export function formatResult(result: any): string {
     if (result instanceof ClojureVector) {
         return `[${result.map(formatResult).join(" ")}]`;
     }
@@ -128,10 +147,6 @@ function formatResult(result: any): string {
     }
 
     if (result instanceof ClojureKeyword) {
-        return result.value;
-    }
-
-    if (result instanceof ClojureSymbol) {
         return result.value;
     }
 
@@ -151,55 +166,11 @@ function formatResult(result: any): string {
         return `#<Function params:[${result.params}]>`;
     }
 
+    if (result === null) return "nil";
+    if (result === true) return "true";
+    if (result === false) return "false";
+
     return String(result);
 }
 
-function compileFile(filepath: string) {
-    try {
-        if (!fs.existsSync(filepath))
-            throw new Error(`Arquivo não encontrado: ${filepath}`);
-
-        const source = fs.readFileSync(filepath, "utf-8");
-        const tokens = tokenize(source, filepath);
-
-        const expressions = [];
-        while (tokens.length > 0) {
-            expressions.push(parse(tokens));
-        }
-
-        const jsHeader = `// Compilado por Mini-Clojure-TS\n`;
-        const jsCode = expressions.map(transpile).join(";\n") + ";";
-
-        const outFile = filepath.replace(".clj", ".js");
-        fs.writeFileSync(outFile, jsHeader + jsCode);
-
-        console.log(`\x1b[32m✔ Sucesso! Compilado para: ${outFile}\x1b[0m`);
-        console.log(`Execute com: node ${outFile}`);
-    } catch (error: any) {
-        printError(error, fs.readFileSync(filepath, "utf-8"));
-    }
-}
-
-const rawArgs = process.argv.slice(2);
-const isCompile = rawArgs.includes("-t") || rawArgs.includes("--transpile");
-const fileArgs = rawArgs.filter(
-    (arg) => arg !== "-t" && arg !== "--transpile" && !arg.startsWith("-"),
-);
-
-if (fileArgs.length > 0) {
-    const filename = fileArgs[0];
-    const filepath = path.resolve(process.cwd(), filename!);
-
-    if (isCompile) {
-        compileFile(filepath);
-    } else {
-        if (fs.existsSync(filepath)) {
-            const fileContent = fs.readFileSync(filepath, "utf-8");
-            run(fileContent, filename!);
-        } else {
-            console.error("Arquivo não encontrado.");
-        }
-    }
-} else {
-    startRepl();
-}
+export { Env, evaluate, tokenize, trampoline };
