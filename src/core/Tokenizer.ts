@@ -2,6 +2,49 @@
 import type { Token, SourceLocation } from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 
+function validateString(tokenValue: string, loc: SourceLocation) {
+    if (tokenValue.length < 2 || !tokenValue.endsWith('"')) {
+        throw new ClojureError("String não terminada.", loc);
+    }
+
+    const content = tokenValue.slice(1, -1);
+
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        if (char === "\\") {
+            if (i + 1 >= content.length) {
+                continue;
+            }
+            const nextChar = content[i + 1];
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const validEscapes = ['"', "\\", "n", "t", "r", "b", "f"];
+            const strictEscapes = ['"', "\\", "n", "t"];
+            if (!strictEscapes.includes(nextChar!)) {
+                const errorCol = loc.start.col + 1 + i;
+                const errorLoc = {
+                    ...loc,
+                    start: {
+                        ...loc.start,
+                        col: errorCol,
+                        index: loc.start.index + 1 + i,
+                    },
+                    end: {
+                        ...loc.start,
+                        col: errorCol + 2,
+                        index: loc.start.index + 1 + i + 2,
+                    },
+                };
+
+                throw new ClojureError(
+                    `Escape inválido: \\${nextChar}`,
+                    errorLoc,
+                );
+            }
+            i++;
+        }
+    }
+}
+
 export function tokenize(input: string, filename: string = "unknown"): Token[] {
     const tokens: Token[] = [];
     let current = 0;
@@ -48,15 +91,13 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
                 start: startLoc,
                 end: endLoc,
             };
+
             if (value.startsWith(";")) {
                 continue;
             }
 
-            if (value.startsWith('"') && !value.endsWith('"')) {
-                throw new ClojureError(
-                    `String não terminada na linha ${loc.start.line}`,
-                    loc,
-                );
+            if (value.startsWith('"')) {
+                validateString(value, loc);
             }
 
             tokens.push({
