@@ -11,6 +11,8 @@ import {
 } from "../types/index.js";
 import { prStr } from "../core/Printer.js";
 import { equals } from "../core/Runtime.js";
+import { parse } from "../core/Parser.js";
+import { tokenize } from "../core/Tokenizer.js";
 
 function assertNumber(val: any, operation: string) {
     if (typeof val !== "number" || isNaN(val)) {
@@ -100,6 +102,15 @@ export const initialConfig: { [key: string]: any } = {
 
     // --- STRING / IO ---
     str: (...args: any[]) => args.map((a) => prStr(a, false)).join(""),
+    "pr-str": (...args: any[]) => args.map((a) => prStr(a, true)).join(" "),
+    "read-string": (s: any) => {
+        if (typeof s !== "string") {
+            throw new InvalidParamError("read-string espera uma string");
+        }
+        const tokens = tokenize(s, "read-string");
+        return parse(tokens);
+    },
+
     print: (...args: any[]) => {
         const output = args.map((a) => prStr(a, false)).join(" ");
         console.log(output);

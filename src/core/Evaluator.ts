@@ -263,8 +263,7 @@ export function evaluate(x: Expression, env: Env): any {
         }
 
         if (typeof x === "string") {
-            if (x.startsWith('"') && x.endsWith('"')) return x.slice(1, -1);
-            return env.get(x);
+            return x;
         }
 
         if (typeof x === "number") return x;
@@ -389,11 +388,17 @@ export function evaluate(x: Expression, env: Env): any {
                 if (!Array.isArray(bindings))
                     throw new InvalidParamError("let requer bindings");
 
+                if (bindings.length % 2 !== 0) {
+                    throw new InvalidParamError(
+                        "let requer número par de itens no vetor de bindings",
+                    );
+                }
+
                 const letEnv = new Env(env);
                 for (let i = 0; i < bindings.length; i += 2) {
                     const shape = bindings[i];
                     const valExpr = bindings[i + 1];
-                    const val = trampoline(evaluate(valExpr!, env));
+                    const val = trampoline(evaluate(valExpr!, letEnv));
                     bind(letEnv, shape, val);
                 }
 

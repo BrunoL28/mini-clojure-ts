@@ -122,7 +122,12 @@ export function parse(tokens: Token[]): Expression {
     }
 
     if (token.value.startsWith('"') && token.value.endsWith('"')) {
-        return token.value;
+        try {
+            return JSON.parse(token.value);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (e) {
+            return token.value.slice(1, -1);
+        }
     }
 
     if (token.value === "true") return true;

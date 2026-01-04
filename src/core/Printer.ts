@@ -44,7 +44,7 @@ export function prStr(data: any, readably: boolean = false): string {
 
     if (typeof data === "string") {
         if (readably) {
-            return `"${data.replace(/"/g, '\\"')}"`;
+            return JSON.stringify(data);
         }
         return data;
     }
