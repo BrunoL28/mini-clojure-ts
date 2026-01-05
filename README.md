@@ -435,12 +435,12 @@ console.log(ast);
 
 ## Roadmap
 
-- [] **v3.0:** Rastreabilidade de Erros, CI e testes automatizados, Separação Engine/CLI, Multiline + Histórico no REPL
-- [] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
-- [] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
-- [] **v6.0:** Loader e Cache, Namespaces, Empacotamento
-- [] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
-- [] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop
+- [x] **v3.0:** Rastreabilidade de Erros, CI e testes automatizados, Separação Engine/CLI, Multiline + Histórico no REPL
+- [ ] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
+- [ ] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
+- [ ] **v6.0:** Loader e Cache, Namespaces, Empacotamento
+- [ ] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
+- [ ] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop
 
 ---
 
