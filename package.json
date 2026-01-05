@@ -24,7 +24,7 @@
     "keywords": [],
     "author": "Bruno Lima Soares",
     "license": "MIT",
-    "packageManager": "pnpm@10.10.0",
+    "packageManager": "pnpm@10.27.0",
     "devDependencies": {
         "@commitlint/cli": "^20.2.0",
         "@commitlint/config-conventional": "^20.2.0",
