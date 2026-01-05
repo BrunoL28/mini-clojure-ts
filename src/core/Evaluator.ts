@@ -234,6 +234,40 @@ function bind(env: Env, shape: any, value: any) {
     throw new InvalidParamError(`Forma inválida: ${shape}`);
 }
 
+export function macroexpand1(form: any, env: Env): any {
+    if (!Array.isArray(form) && !(form instanceof ClojureVector)) return form;
+    if (form.length === 0) return form;
+
+    const op = form[0];
+
+    let macroVal = null;
+    try {
+        macroVal = trampoline(evaluate(op, env));
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (e) {
+        return form;
+    }
+
+    if (macroVal instanceof ClojureMacro) {
+        const args = form.slice(1);
+        const macroEnv = new Env(macroVal.env, macroVal.params, args);
+        const expanded = trampoline(evaluate(macroVal.body, macroEnv));
+
+        if (
+            expanded &&
+            typeof expanded === "object" &&
+            "loc" in form &&
+            !expanded.loc
+        ) {
+            expanded.loc = (form as any).loc;
+        }
+
+        return expanded;
+    }
+
+    return form;
+}
+
 export function evaluate(x: Expression, env: Env): any {
     try {
         if (x instanceof ClojureSymbol) {
@@ -258,10 +292,7 @@ export function evaluate(x: Expression, env: Env): any {
             }
         }
 
-        if (typeof x === "string") {
-            return x;
-        }
-
+        if (typeof x === "string") return x;
         if (typeof x === "number") return x;
         if (typeof x === "boolean") return x;
         if (x === null) return null;
@@ -294,6 +325,32 @@ export function evaluate(x: Expression, env: Env): any {
 
             let opName = op;
             if (op instanceof ClojureSymbol) opName = op.value;
+
+            // --- SPECIAL FORMS: MACROEXPAND ---
+
+            if (opName === "macroexpand-1") {
+                if (args.length !== 1)
+                    throw new InvalidParamError(
+                        "macroexpand-1 requer 1 argumento",
+                    );
+                const formToExpand = trampoline(evaluate(args[0]!, env));
+                return macroexpand1(formToExpand, env);
+            }
+
+            if (opName === "macroexpand") {
+                if (args.length !== 1)
+                    throw new InvalidParamError(
+                        "macroexpand requer 1 argumento",
+                    );
+                let currentForm = trampoline(evaluate(args[0]!, env));
+                let expanded = macroexpand1(currentForm, env);
+
+                while (expanded !== currentForm) {
+                    currentForm = expanded;
+                    expanded = macroexpand1(currentForm, env);
+                }
+                return expanded;
+            }
 
             if (opName === "defn") {
                 const [name, params, ...body] = args;

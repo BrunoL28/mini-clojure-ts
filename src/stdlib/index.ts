@@ -130,6 +130,7 @@ export const initialConfig: { [key: string]: any } = {
     // --- COLEÇÕES ---
     list: (...args: any[]) => args,
     first: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a[0] : null),
+    second: (a: any[]) => (Array.isArray(a) && a.length > 1 ? a[1] : null),
     rest: (a: any[]) => (Array.isArray(a) && a.length > 0 ? a.slice(1) : []),
     count: (a: any[]) => (Array.isArray(a) ? a.length : 0),
     "empty?": (a: any[]) => Array.isArray(a) && a.length === 0,
