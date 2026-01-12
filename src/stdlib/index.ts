@@ -180,35 +180,36 @@ export const initialConfig: { [key: string]: any } = {
 
     // --- MAPAS ---
     "hash-map": (...args: any[]) => {
-        const map = new ClojureMap();
+        let map = new ClojureMap();
         for (let i = 0; i < args.length; i += 2) {
             const key = args[i];
             const val = args[i + 1];
-            const existingKey = resolveKey(map, key);
-            map.set(existingKey, val);
+            map = map.assoc(key, val);
         }
         return map;
     },
-
     get: (map: any, key: any, notFound: any = null) => {
         if (!(map instanceof ClojureMap)) return notFound;
-        if (map.has(key)) return map.get(key);
-        const existingKey = resolveKey(map, key);
-        if (map.has(existingKey)) return map.get(existingKey);
-
-        return notFound;
+        const val = map.get(key);
+        return val === undefined ? notFound : val;
     },
-
     assoc: (map: any, ...args: any[]) => {
         if (!(map instanceof ClojureMap))
             throw new Error("assoc requer um mapa");
-        const newMap = new ClojureMap(map);
+
+        let newMap = map;
         for (let i = 0; i < args.length; i += 2) {
             const key = args[i];
             const val = args[i + 1];
-            const keyToSet = resolveKey(newMap, key);
-
-            newMap.set(keyToSet, val);
+            newMap = newMap.assoc(key, val);
+        }
+        return newMap;
+    },
+    dissoc: (map: any, ...keys: any[]) => {
+        if (!(map instanceof ClojureMap)) return null;
+        let newMap = map;
+        for (const k of keys) {
+            newMap = newMap.dissoc(k);
         }
         return newMap;
     },

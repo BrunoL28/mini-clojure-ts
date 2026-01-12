@@ -6,12 +6,12 @@
 (print numeros)
 
 (print "Multiplicando tudo por 10:")
-(def resultado (map (fn (x) (* x 10)) numeros))
+(def resultado (map (fn [x] (* x 10)) numeros))
 
 (print resultado)
 
 (print "Usando função definida:")
-(def quadrado (fn (n) (* n n)))
+(def quadrado (fn [n] (* n n)))
 (print (map quadrado numeros))
 
 (print "--- Fim ---")

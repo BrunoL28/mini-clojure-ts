@@ -300,12 +300,13 @@ export function evaluate(x: Expression, env: Env): any {
         if (x instanceof ClojureAtom) return x;
 
         if (x instanceof ClojureMap) {
-            const newMap = new ClojureMap();
+            let newMap = new ClojureMap();
             if (x.loc) newMap.loc = x.loc;
+
             for (const [key, val] of x) {
                 const evalKey = trampoline(evaluate(key, env));
                 const evalVal = trampoline(evaluate(val, env));
-                newMap.set(evalKey, evalVal);
+                newMap = newMap.assoc(evalKey, evalVal);
             }
             return newMap;
         }

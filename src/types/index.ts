@@ -1,4 +1,5 @@
 import { Env } from "../core/Environment.js";
+import { HAMT } from "../dataStructures/HAMT.js";
 
 export interface SourceLocation {
     file?: string;
@@ -21,23 +22,70 @@ export interface Token {
 }
 
 export interface ILocatable {
-    loc?: SourceLocation;
+    loc?: SourceLocation | undefined;
 }
 
-export class ClojureMap extends Map<any, any> implements ILocatable {
-    public loc?: SourceLocation;
+export class ClojureMap implements ILocatable {
+    public loc?: SourceLocation | undefined;
+    private hamt: HAMT;
+
+    constructor(initialHamt?: HAMT) {
+        this.hamt = initialHamt || new HAMT();
+    }
+
+    get(key: any): any {
+        return this.hamt.get(key);
+    }
+
+    has(key: any): boolean {
+        return this.hamt.has(key);
+    }
+
+    get size(): number {
+        return this.hamt.size;
+    }
+
+    assoc(key: any, val: any): ClojureMap {
+        const newHamt = this.hamt.set(key, val);
+        const map = new ClojureMap(newHamt);
+        map.loc = this.loc;
+        return map;
+    }
+
+    dissoc(key: any): ClojureMap {
+        const newHamt = this.hamt.delete(key);
+        const map = new ClojureMap(newHamt);
+        map.loc = this.loc;
+        return map;
+    }
+
+    [Symbol.iterator]() {
+        return this.hamt[Symbol.iterator]();
+    }
+
+    entries() {
+        return this.hamt.entries();
+    }
+
+    keys() {
+        return this.hamt.entries().map((e) => e[0]);
+    }
+
+    values() {
+        return this.hamt.entries().map((e) => e[1]);
+    }
 
     toString(): string {
-        const entries = [];
+        const entriesStr: string[] = [];
         for (const [k, v] of this) {
-            entries.push(`${String(k)} ${String(v)}`);
+            entriesStr.push(`${String(k)} ${String(v)}`);
         }
-        return `{${entries.join(" ")}}`;
+        return `{${entriesStr.join(" ")}}`;
     }
 }
 
 export class ClojureKeyword implements ILocatable {
-    public loc?: SourceLocation;
+    public loc?: SourceLocation | undefined;
     constructor(public value: string) {}
 
     toString() {
@@ -46,7 +94,7 @@ export class ClojureKeyword implements ILocatable {
 }
 
 export class ClojureSymbol implements ILocatable {
-    public loc?: SourceLocation;
+    public loc?: SourceLocation | undefined;
     constructor(public value: string) {}
 
     toString() {
@@ -55,7 +103,7 @@ export class ClojureSymbol implements ILocatable {
 }
 
 export class ClojureVector extends Array<any> implements ILocatable {
-    public loc?: SourceLocation;
+    public loc?: SourceLocation | undefined;
 
     toString(): string {
         return `[${this.map(String).join(" ")}]`;
@@ -83,7 +131,7 @@ export class ClojureMacro {
 }
 
 export interface ClojureList extends Array<Expression> {
-    loc?: SourceLocation;
+    loc?: SourceLocation | undefined;
 }
 
 export type Atom =

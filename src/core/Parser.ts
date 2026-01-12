@@ -53,7 +53,8 @@ export function parse(tokens: Token[]): Expression {
     }
 
     if (token.value === "{") {
-        const map = new ClojureMap();
+        // CORREÇÃO: 'let' em vez de 'const', pois vamos reatribuir
+        let map = new ClojureMap();
         map.loc = token.loc;
 
         while (tokens.length > 0 && tokens[0]!.value !== "}") {
@@ -67,7 +68,9 @@ export function parse(tokens: Token[]): Expression {
             }
 
             const value = parse(tokens);
-            map.set(key, value);
+
+            // CORREÇÃO: Usa assoc (imutável) e atualiza a referência
+            map = map.assoc(key, value);
         }
 
         if (tokens.length === 0) {
@@ -124,7 +127,6 @@ export function parse(tokens: Token[]): Expression {
     if (token.value.startsWith('"') && token.value.endsWith('"')) {
         try {
             return JSON.parse(token.value);
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (e) {
             return token.value.slice(1, -1);
         }
