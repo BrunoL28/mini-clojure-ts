@@ -1,6 +1,6 @@
 {
     "name": "mini-clojure-ts",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Interpretador, REPL e transpilador de um subset de Clojure escrito em TypeScript.",
     "main": "./dist/index.js",
     "type": "module",

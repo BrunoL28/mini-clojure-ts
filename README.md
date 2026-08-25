@@ -90,7 +90,6 @@
     ├── tests/
     │   ├── atomos.clj
     │   ├── compilador.clj
-    │   ├── compilador.js
     │   ├── destructuring.clj
     │   ├── erros.clj
     │   ├── estouro.clj
@@ -258,10 +257,6 @@
 <tr style='border-bottom: 1px solid #eee;'>
 <td style='padding: 8px;'><b>compilador.clj</b></td>
 <td style='padding: 8px;'>- Programa de exemplo para transpilação</td>
-</tr>
-<tr style='border-bottom: 1px solid #eee;'>
-<td style='padding: 8px;'><b>compilador.js</b></td>
-<td style='padding: 8px;'>- <strong>NOVO:</strong> Saída transpilada do compilador.clj</td>
 </tr>
 <tr style='border-bottom: 1px solid #eee;'>
 <td style='padding: 8px;'><b>destructuring.clj</b></td>

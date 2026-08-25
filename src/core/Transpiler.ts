@@ -5,6 +5,20 @@ import {
     ClojureSymbol,
 } from "../types/index.js";
 
+/**
+ * Converte um nome do Mini-Clojure em um identificador JavaScript válido.
+ *
+ * Só deve ser aplicado a **identificadores** (símbolos, parâmetros): aplicar
+ * isso a um literal de string corrompe o literal — foi exatamente essa confusão
+ * que gerou a issue #38.
+ *
+ * @param {string} name O nome a converter.
+ * @return {string} Um identificador JavaScript válido.
+ */
+function mangle(name: string): string {
+    return name.replace(/-/g, "_").replace(/\?/g, "$q").replace(/!/g, "$b");
+}
+
 export function transpile(ast: Expression): string {
     if (typeof ast === "number") {
         return ast.toString();
@@ -15,15 +29,14 @@ export function transpile(ast: Expression): string {
         if (val.startsWith("js/")) {
             return val.slice(3);
         }
-        return val.replace(/-/g, "_").replace(/\?/g, "$q").replace(/!/g, "$b");
+        return mangle(val);
     }
 
+    // Uma `string` crua no AST é SEMPRE um literal de string: o Parser produz
+    // ClojureSymbol para identificadores e faz JSON.parse nos literais (que já
+    // chegam aqui sem as aspas). Aplicar mangling aqui corrompia o literal (#38).
     if (typeof ast === "string") {
-        if (ast.startsWith('"')) return ast;
-        if (ast.startsWith("js/")) {
-            return ast.slice(3);
-        }
-        return ast.replace(/-/g, "_").replace(/\?/g, "$q").replace(/!/g, "$b");
+        return JSON.stringify(ast);
     }
 
     if (ast instanceof ClojureKeyword) {
@@ -52,7 +65,12 @@ export function transpile(ast: Expression): string {
 
         if (opStr === "if") {
             const [cond, thenExpr, elseExpr] = args;
-            return `(${transpile(cond!)} ? ${transpile(thenExpr!)} : ${transpile(elseExpr || "null")})`;
+            // `elseExpr` ausente vira `null` literal — não a string "null".
+            const elseStr =
+                elseExpr === undefined || elseExpr === null
+                    ? "null"
+                    : transpile(elseExpr);
+            return `(${transpile(cond!)} ? ${transpile(thenExpr!)} : ${elseStr})`;
         }
 
         if (opStr === "fn") {
@@ -63,7 +81,9 @@ export function transpile(ast: Expression): string {
                 .map((p) => {
                     const s =
                         p instanceof ClojureSymbol ? p.value : p.toString();
-                    return s.replace(/-/g, "_");
+                    // Precisa casar com a mangling dos símbolos do corpo,
+                    // senão (fn [ok?] ok?) gera parâmetro `ok?` e usa `ok$q`.
+                    return mangle(s);
                 })
                 .join(", ");
 
@@ -123,7 +143,7 @@ export function transpile(ast: Expression): string {
             return opStr.slice(3);
         }
 
-        const funcName = transpile(op!).replace(/-/g, "_");
+        const funcName = transpile(op!);
         const funcArgs = args.map(transpile).join(", ");
         return `${funcName}(${funcArgs})`;
     }

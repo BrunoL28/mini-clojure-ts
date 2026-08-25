@@ -7,6 +7,27 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [1.2.1] — 2026-08-25
+
+### Corrigido
+
+- **Transpilador emitia literal de string como identificador** ([#38]). A guarda
+  `ast.startsWith('"')` pressupunha que o literal ainda carregava as aspas do
+  fonte, mas o `Parser` faz `JSON.parse` nos literais — então toda string caía
+  na mangling de identificador e saía sem aspas e com `-` virando `_`:
+  `(print "--- oi ---")` gerava `console.log(___ oi ___)`, um JS que nem parseia.
+  Como identificadores hoje são `ClojureSymbol`, uma `string` crua no AST só pode
+  ser um literal, e agora é emitida com `JSON.stringify`.
+- `if` sem ramo `else` passa a emitir `null` de verdade — antes dependia do
+  comportamento acidental acima para converter a string `"null"` em identificador.
+- Parâmetros de `fn` passam a usar a mesma mangling dos símbolos do corpo:
+  `(fn [ok?] ok?)` gerava o parâmetro inválido `ok?` enquanto o corpo usava `ok$q`.
+- `tests/compilador.js` deixou de ser versionado. O artefato commitado era
+  anterior ao bug e mascarava a quebra — quem olhasse o repo via a saída
+  correta, enquanto o transpilador gerava JS inválido. É saída de build,
+  regenerável com `mini-clj -t tests/compilador.clj`, e o comportamento agora
+  é coberto por teste que executa o JS gerado num contexto isolado.
+
 ## [1.2.0] — 2026-08-25
 
 Release **R4 — Módulos e empacotamento**.
@@ -77,7 +98,8 @@ posições e erros com linha/coluna, harness de testes, CI, API pública,
 REPL com multiline e histórico, igualdade estrutural, `pr-str`/`read-string`,
 escapes do reader, destructuring de mapas e ferramentas de macro.
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.2.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.0.0
@@ -88,3 +110,4 @@ escapes do reader, destructuring de mapas e ferramentas de macro.
 [#16]: https://github.com/BrunoL28/mini-clojure-ts/issues/16
 [#17]: https://github.com/BrunoL28/mini-clojure-ts/issues/17
 [#18]: https://github.com/BrunoL28/mini-clojure-ts/issues/18
+[#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

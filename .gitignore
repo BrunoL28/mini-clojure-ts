@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # Artefatos temporários das suítes de teste
 tests/fixtures/.tmp-*
+
+# Saída do transpilador (regenerável com: mini-clj -t tests/compilador.clj)
+tests/compilador.js
