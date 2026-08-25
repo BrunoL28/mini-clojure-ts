@@ -7,7 +7,7 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
-## [1.2.1] — 2026-08-25
+## [6.0.1] — 2026-08-25
 
 ### Corrigido
 
@@ -28,7 +28,7 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
   regenerável com `mini-clj -t tests/compilador.clj`, e o comportamento agora
   é coberto por teste que executa o JS gerado num contexto isolado.
 
-## [1.2.0] — 2026-08-25
+## [6.0.0] — 2026-08-25
 
 Release **R4 — Módulos e empacotamento**.
 
@@ -59,7 +59,7 @@ Release **R4 — Módulos e empacotamento**.
 - `-t` passa a aceitar `-o` e cria o diretório de saída quando necessário.
 - O banner do REPL passa a mostrar a versão real do pacote.
 
-## [1.1.0] — 2026-08-25
+## [5.0.0] — 2026-08-25
 
 Release **R3 — Stdlib/Core**.
 
@@ -91,18 +91,37 @@ Release **R3 — Stdlib/Core**.
 - Funções de sequência devolviam `ClojureVector` por herança de espécie, então
   `(seq? (filter ...))` era `false`. Agora devolvem listas, como em Clojure.
 
-## [1.0.0]
+## Versões anteriores
 
-Releases **R1 — Fundação de Produto** e **R2 — Semântica e tipos**:
-posições e erros com linha/coluna, harness de testes, CI, API pública,
-REPL com multiline e histórico, igualdade estrutural, `pr-str`/`read-string`,
-escapes do reader, destructuring de mapas e ferramentas de macro.
+Este changelog começa na `5.0.0`. As versões anteriores estão documentadas nas
+[releases do GitHub](https://github.com/BrunoL28/mini-clojure-ts/releases):
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.2.1...HEAD
-[1.2.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.0.0
+| Versão   | Marco                                                                   |
+| -------- | ----------------------------------------------------------------------- |
+| [4.1.0]  | **R2** — mapas persistentes (HAMT), destructuring de mapas, macroexpand |
+| [v3.0.0] | **R1** — erros com linha/coluna, CI, API pública, REPL                  |
+| [v2.0.0] | Performance nativa                                                      |
+| [v1.3.0] | Elegant Code                                                            |
+| [v1.2.0] | Safety Net                                                              |
+| [v1.1.0] | State & Safety                                                          |
+| [v1.0.0] | Metaprogramação e TCO                                                   |
+
+> **Nota sobre versionamento:** o `package.json` ficou parado em `1.0.0` enquanto
+> as tags avançavam até `4.1.0`. A partir da `5.0.0` ele acompanha as releases.
+> A numeração segue a convenção do roadmap no README: uma major por milestone
+> (R3 → 5.0.0, R4 → 6.0.0).
+
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...HEAD
+[6.0.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.0...v6.0.1
+[6.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v5.0.0...v6.0.0
+[5.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/4.1.0...v5.0.0
+[4.1.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/4.1.0
+[v3.0.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v3.0.0
+[v2.0.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v2.0.0
+[v1.3.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.3.0
+[v1.2.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.2.0
+[v1.1.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.1.0
+[v1.0.0]: https://github.com/BrunoL28/mini-clojure-ts/releases/tag/v1.0.0
 [#12]: https://github.com/BrunoL28/mini-clojure-ts/issues/12
 [#13]: https://github.com/BrunoL28/mini-clojure-ts/issues/13
 [#14]: https://github.com/BrunoL28/mini-clojure-ts/issues/14
