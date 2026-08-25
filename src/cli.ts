@@ -115,7 +115,7 @@ function handleCommand(
 
 // --- Loop Principal ---
 
-function startRepl() {
+function startRepl(opts: CliOptions) {
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -125,11 +125,16 @@ function startRepl() {
 
     loadHistory(rl);
 
-    const replEnv = createGlobalEnv();
+    const replEnv = createGlobalEnv(sandboxOptions(opts));
 
     let buffer = "";
 
     console.log("\x1b[36m%s\x1b[0m", `Mini-Clojure REPL v${readVersion()}`);
+    if (opts.sandbox) {
+        console.log(
+            "\x1b[33mModo sandbox: interop restrito, sem IO e sem módulos.\x1b[0m",
+        );
+    }
     console.log("Digite :help para ver comandos.");
     console.log("-----------------------------------------");
 
@@ -204,13 +209,22 @@ function startRepl() {
     });
 }
 
-function handleFileExecution(filepath: string) {
+function handleFileExecution(filepath: string, opts: CliOptions) {
     try {
-        runFile(filepath);
+        runFile(filepath, sandboxOptions(opts));
     } catch (error: any) {
         console.error(error.message);
         process.exit(1);
     }
+}
+
+/** Traduz as flags de sandbox da CLI para as opções da API. */
+function sandboxOptions(opts: CliOptions) {
+    if (!opts.sandbox) return {};
+    return {
+        sandbox: true,
+        sandboxOptions: opts.allow.length > 0 ? { extraAllow: opts.allow } : {},
+    };
 }
 
 /** Caminho legível: relativo quando ajuda, absoluto quando o relativo piora. */
@@ -331,6 +345,8 @@ Opções gerais:
   -e, --eval <código>    Avalia uma expressão e imprime o resultado
   -f, --file <arquivo>   Executa um arquivo .clj
       --repl             Inicia o REPL mesmo com outros argumentos
+      --sandbox          Interop restrito: sem IO, sem módulos, whitelist de globais
+      --allow <a,b>      Libera globais extras no sandbox (ex.: --allow Intl,URL)
   -h, --help             Mostra esta ajuda
   -v, --version          Mostra a versão
 
@@ -363,6 +379,8 @@ interface CliOptions {
     runtimeGlobal: string | null;
     sourceMap: boolean;
     watch: boolean;
+    sandbox: boolean;
+    allow: string[];
     transpile: boolean;
     repl: boolean;
     help: boolean;
@@ -388,6 +406,8 @@ function parseArgs(argv: string[]): CliOptions {
         runtimeGlobal: null,
         sourceMap: false,
         watch: false,
+        sandbox: false,
+        allow: [],
         transpile: false,
         repl: false,
         help: false,
@@ -443,6 +463,17 @@ function parseArgs(argv: string[]): CliOptions {
             case "--watch":
                 opts.watch = true;
                 break;
+            case "--sandbox":
+                opts.sandbox = true;
+                break;
+            case "--allow":
+                opts.allow.push(
+                    ...requireValue(arg)
+                        .split(",")
+                        .map((n) => n.trim())
+                        .filter(Boolean),
+                );
+                break;
             case "-t":
             case "--transpile":
                 opts.transpile = true;
@@ -496,8 +527,8 @@ function resolveOutFile(filepath: string, opts: CliOptions): string {
     return path.join(dir, base);
 }
 
-function handleEval(code: string) {
-    const env = createGlobalEnv();
+function handleEval(code: string, opts: CliOptions) {
+    const env = createGlobalEnv(sandboxOptions(opts));
     env.set(CURRENT_FILE, path.join(process.cwd(), "--eval"));
     try {
         const result = runSource(code, { env });
@@ -520,16 +551,16 @@ function main() {
     if (opts.help) return printHelp();
     if (opts.version) return console.log(readVersion());
 
-    if (opts.repl || (!opts.file && !opts.evalCode)) return startRepl();
+    if (opts.repl || (!opts.file && !opts.evalCode)) return startRepl(opts);
 
-    if (opts.evalCode !== null) return handleEval(opts.evalCode);
+    if (opts.evalCode !== null) return handleEval(opts.evalCode, opts);
 
     const filepath = path.resolve(process.cwd(), opts.file!);
     if (opts.transpile) {
         if (opts.watch) return handleWatch(filepath, opts);
         return handleCompilation(filepath, opts);
     }
-    return handleFileExecution(filepath);
+    return handleFileExecution(filepath, opts);
 }
 
 main();

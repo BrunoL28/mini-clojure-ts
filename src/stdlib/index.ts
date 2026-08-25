@@ -1,4 +1,3 @@
-import * as fs from "fs";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { ClojureError } from "../errors/ClojureError.js";
 import {
@@ -14,6 +13,13 @@ import { equals } from "../core/Runtime.js";
 import { parse } from "../core/Parser.js";
 import { tokenize } from "../core/Tokenizer.js";
 import { callFn, isCallable, truthy } from "../core/Invoke.js";
+import { getHost } from "../core/Host.js";
+import {
+    OPEN_POLICY,
+    accessMember,
+    readProperty,
+    construct,
+} from "../core/Interop.js";
 
 // ==========================================
 // Helpers internos
@@ -372,8 +378,14 @@ export const initialConfig: { [key: string]: any } = {
         if (typeof path !== "string") {
             throw new InvalidParamError("slurp espera um caminho (string)");
         }
+        const host = getHost();
+        if (!host.hasFileSystem) {
+            throw new ClojureError(
+                `slurp não está disponível neste ambiente (host: ${host.name}).`,
+            );
+        }
         try {
-            return fs.readFileSync(path, "utf-8");
+            return host.readFile(path);
         } catch (e: any) {
             throw new ClojureError(
                 `slurp: não foi possível ler '${path}': ${e.message}`,
@@ -386,8 +398,14 @@ export const initialConfig: { [key: string]: any } = {
         if (typeof path !== "string") {
             throw new InvalidParamError("spit espera um caminho (string)");
         }
+        const host = getHost();
+        if (!host.hasFileSystem) {
+            throw new ClojureError(
+                `spit não está disponível neste ambiente (host: ${host.name}).`,
+            );
+        }
         try {
-            fs.writeFileSync(path, prStr(content, false), "utf-8");
+            host.writeFile(path, prStr(content, false));
             return null;
         } catch (e: any) {
             throw new ClojureError(
@@ -759,33 +777,19 @@ export const initialConfig: { [key: string]: any } = {
     // Interop & Atoms
     // ==========================================
 
-    new: (ClassRef: any, ...args: any[]) => {
-        if (typeof ClassRef !== "function") {
-            throw new InvalidParamError(
-                "O primeiro argumento de 'new' deve ser uma classe/função construtora.",
-            );
-        }
-        return new ClassRef(...args);
-    },
-    ".": (member: string | ClojureKeyword, target: any, ...args: any[]) => {
-        if (target === undefined || target === null) {
-            throw new InvalidParamError(
-                "Alvo do operador '.' é nulo ou indefinido.",
-            );
-        }
+    // Interop. A política é aplicada por `createGlobalEnv`, que substitui
+    // estas entradas por versões restritas quando o sandbox está ligado.
+    new: (ClassRef: any, ...args: any[]) =>
+        construct(OPEN_POLICY, ClassRef, args),
 
-        let propName = member.toString();
-        if (member instanceof ClojureKeyword) propName = member.value.slice(1);
-        else if (propName.startsWith('"')) propName = propName.slice(1, -1);
+    // (. membro alvo & args) — propriedade se não for função, chamada se for.
+    ".": (member: any, target: any, ...args: any[]) =>
+        accessMember(OPEN_POLICY, member, target, args),
 
-        const value = target[propName];
+    // (.- membro alvo) — propriedade SEM chamar, mesmo sendo função.
+    ".-": (member: any, target: any) =>
+        readProperty(OPEN_POLICY, member, target),
 
-        if (typeof value === "function") {
-            return value.apply(target, args);
-        }
-
-        return value;
-    },
     atom: (val: any) => new ClojureAtom(val),
     deref: (atm: any) => {
         if (!(atm instanceof ClojureAtom))

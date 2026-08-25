@@ -1,79 +1,17 @@
 import * as fs from "fs";
-import { Env } from "./core/Environment.js";
-import { tokenize } from "./core/Tokenizer.js";
-import { parse as parseExpr } from "./core/Parser.js";
-import { evaluate } from "./core/Evaluator.js";
-import { initialConfig } from "./stdlib/index.js";
-import { trampoline } from "./core/Trampoline.js";
-import { compileProgram, DEFAULT_RUNTIME_IMPORT } from "./core/Compiler.js";
-import type { CompileProgramOptions } from "./core/Compiler.js";
-import { type Expression } from "./types/index.js";
-import { prStr } from "./core/Printer.js";
-import {
-    evaluateFile,
-    clearModuleCache,
-    CURRENT_FILE,
-} from "./core/Modules.js";
 import * as path from "path";
+import { installNodeHost } from "./core/NodeHost.js";
+import { compileProgram } from "./core/Compiler.js";
+import { evaluateFile, CURRENT_FILE } from "./core/Modules.js";
+import { createGlobalEnv, parse } from "./core/Api.js";
+import type { RunOptions, CompileOptions } from "./core/Api.js";
+import type { CompileProgramOptions } from "./core/Compiler.js";
 
-// ----- API Types ----- //
+// Este é o entrypoint de Node, então o host de arquivos entra aqui.
+installNodeHost();
 
-export interface RunOptions {
-    env?: Env;
-}
-
-export interface CompileOptions extends CompileProgramOptions {
-    outFile?: string;
-}
-
-// ----- Public API ----- //
-
-/**
- * Cria um novo ambiente global com a configuração inicial (stdlib).
- *
- * @return {Env} Um novo ambiente global configurado.
- */
-export function createGlobalEnv(): Env {
-    const env = new Env();
-    Object.keys(initialConfig).forEach((key) => {
-        env.set(key, initialConfig[key]);
-    });
-    return env;
-}
-
-/**
- * Tokeniza e analisa uma string de código-fonte em expressões Clojure.
- *
- * @param {string} source A string de código-fonte a ser analisada.
- * @return {Expression[]} Um array de expressões analisadas.
- */
-export function parse(source: string): Expression[] {
-    const tokens = tokenize(source);
-    const expressions: Expression[] = [];
-    while (tokens.length > 0) {
-        expressions.push(parseExpr(tokens));
-    }
-    return expressions;
-}
-
-/**
- * Executa o código-fonte fornecido em um ambiente Clojure.
- *
- * @param {string} source O código-fonte a ser executado.
- * @param {RunOptions} [opts] Opções para execução, incluindo o ambiente.
- * @return {any} O resultado da última expressão avaliada.
- */
-export function runSource(source: string, opts: RunOptions = {}): any {
-    const env = opts.env || createGlobalEnv();
-    const expressions = parse(source);
-    let lastResult = null;
-
-    for (const expr of expressions) {
-        lastResult = trampoline(evaluate(expr, env));
-    }
-
-    return lastResult;
-}
+// Toda a API browser-safe vive em core/Api.ts e é reexportada daqui.
+export * from "./core/Api.js";
 
 /**
  * Executa o código-fonte de um arquivo em um ambiente Clojure.
@@ -89,26 +27,12 @@ export function runFile(filepath: string, opts: RunOptions = {}): any {
         throw new Error(`Arquivo não encontrado: ${absPath}`);
     }
 
-    const env = opts.env || createGlobalEnv();
+    const env = opts.env || createGlobalEnv(opts);
     // Deixa `*file*` disponível para que `require`/`load-file` resolvam
     // caminhos relativos a partir deste arquivo.
     env.set(CURRENT_FILE, absPath);
 
     return evaluateFile(absPath, env);
-}
-
-/**
- * Compila o código-fonte fornecido para JavaScript.
- *
- * @param {string} source O código-fonte a ser compilado.
- * @param {CompileProgramOptions} [opts] Opções de emissão.
- * @return {string} O código JavaScript compilado.
- */
-export function compileSource(
-    source: string,
-    opts: CompileProgramOptions = {},
-): string {
-    return compileProgram(parse(source), opts).code;
 }
 
 /**
@@ -158,23 +82,3 @@ export function compileFile(
 
     return result.code;
 }
-
-/**
- * Formata o resultado de uma avaliação para uma string legível.
- *
- * @param {any} result O resultado a ser formatado.
- * @return {string} O resultado formatado como string.
- */
-export function formatResult(result: any): string {
-    return prStr(result, true);
-}
-
-export {
-    Env,
-    evaluate,
-    tokenize,
-    trampoline,
-    clearModuleCache,
-    compileProgram,
-    DEFAULT_RUNTIME_IMPORT,
-};

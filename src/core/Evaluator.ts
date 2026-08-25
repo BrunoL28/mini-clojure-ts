@@ -14,6 +14,7 @@ import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { ClojureReferenceError } from "../errors/ReferenceError.js";
 import { ClojureError } from "../errors/ClojureError.js";
 import { prStr } from "./Printer.js";
+import { resolveJsSymbol, getInteropPolicy } from "./Interop.js";
 import { Bounce, trampoline } from "./Trampoline.js";
 import {
     loadModule,
@@ -281,14 +282,7 @@ export function evaluate(x: Expression, env: Env): any {
     try {
         if (x instanceof ClojureSymbol) {
             if (x.value.startsWith("js/")) {
-                const jsSymbol = x.value.slice(3);
-                const value = (globalThis as any)[jsSymbol];
-                if (value === undefined) {
-                    throw new InvalidParamError(
-                        `Global JavaScript 'js/${jsSymbol}' não encontrado.`,
-                    );
-                }
-                return value;
+                return resolveJsSymbol(x.value.slice(3), env);
             }
 
             // alias/membro de um módulo requerido com :as (ex.: math/soma).
@@ -567,6 +561,13 @@ export function evaluate(x: Expression, env: Env): any {
                     );
                 }
 
+                if (!getInteropPolicy(env).allowModules) {
+                    throw new ClojureError(
+                        "Sandbox: 'require' bloqueado (dá acesso ao sistema de arquivos).",
+                        (x as any).loc,
+                    );
+                }
+
                 const record = loadModule(spec, env);
 
                 if (opts.length === 0) {
@@ -614,6 +615,13 @@ export function evaluate(x: Expression, env: Env): any {
                 if (typeof spec !== "string") {
                     throw new InvalidParamError(
                         `load-file espera o caminho como string, recebeu ${prStr(spec, true)}`,
+                    );
+                }
+
+                if (!getInteropPolicy(env).allowModules) {
+                    throw new ClojureError(
+                        "Sandbox: 'load-file' bloqueado (dá acesso ao sistema de arquivos).",
+                        (x as any).loc,
                     );
                 }
 

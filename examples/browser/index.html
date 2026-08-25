@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="pt-BR">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Mini-Clojure-TS no browser</title>
+        <style>
+            :root {
+                color-scheme: light dark;
+                --bg: #ffffff;
+                --fg: #1b1b1f;
+                --muted: #6b6b76;
+                --line: #e2e2e8;
+                --accent: #a931ec;
+                --code-bg: #f6f6f9;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #16161a;
+                    --fg: #e8e8ee;
+                    --muted: #9a9aa6;
+                    --line: #2c2c34;
+                    --code-bg: #1e1e24;
+                }
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                padding: 2rem 1.25rem 3rem;
+                background: var(--bg);
+                color: var(--fg);
+                font:
+                    16px/1.55 system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    sans-serif;
+            }
+            main {
+                max-width: 60rem;
+                margin: 0 auto;
+            }
+            h1 {
+                margin: 0 0 0.25rem;
+                font-size: 1.6rem;
+            }
+            p.sub {
+                margin: 0 0 1.5rem;
+                color: var(--muted);
+            }
+            .grid {
+                display: grid;
+                gap: 1rem;
+                grid-template-columns: 1fr;
+            }
+            @media (min-width: 56rem) {
+                .grid {
+                    grid-template-columns: 1fr 1fr;
+                }
+            }
+            label {
+                display: block;
+                font-weight: 600;
+                font-size: 0.85rem;
+                margin-bottom: 0.4rem;
+                color: var(--muted);
+            }
+            textarea,
+            pre {
+                width: 100%;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                background: var(--code-bg);
+                color: var(--fg);
+                font:
+                    13px/1.5 ui-monospace,
+                    "SF Mono",
+                    Menlo,
+                    Consolas,
+                    monospace;
+                padding: 0.75rem;
+                margin: 0;
+            }
+            textarea {
+                min-height: 16rem;
+                resize: vertical;
+            }
+            pre {
+                min-height: 16rem;
+                overflow: auto;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .bar {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                align-items: center;
+                margin: 1rem 0;
+            }
+            button {
+                border: 1px solid var(--line);
+                background: var(--bg);
+                color: var(--fg);
+                border-radius: 6px;
+                padding: 0.45rem 0.9rem;
+                font: inherit;
+                font-size: 0.9rem;
+                cursor: pointer;
+            }
+            button.primary {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #fff;
+                font-weight: 600;
+            }
+            label.check {
+                display: inline-flex;
+                gap: 0.35rem;
+                align-items: center;
+                font-weight: 400;
+                margin: 0 0 0 auto;
+                color: var(--fg);
+                font-size: 0.9rem;
+            }
+            .erro {
+                color: #d33;
+            }
+            footer {
+                margin-top: 2rem;
+                padding-top: 1rem;
+                border-top: 1px solid var(--line);
+                color: var(--muted);
+                font-size: 0.85rem;
+            }
+            code {
+                background: var(--code-bg);
+                padding: 0.1rem 0.3rem;
+                border-radius: 4px;
+                font-size: 0.9em;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Mini-Clojure-TS no browser</h1>
+            <p class="sub">
+                Interpretador, macros e compilador rodando sem servidor. Sem
+                <code>fs</code>, sem Node.
+            </p>
+
+            <div class="bar">
+                <button class="primary" id="rodar">Avaliar</button>
+                <button id="compilar">Compilar para JS</button>
+                <button id="limpar">Limpar</button>
+                <label class="check">
+                    <input type="checkbox" id="sandbox" />
+                    sandbox
+                </label>
+            </div>
+
+            <div class="grid">
+                <div>
+                    <label for="fonte">Código</label>
+                    <textarea id="fonte" spellcheck="false">
+(defn fizzbuzz [n]
+  (cond
+    (zero? (rem n 15)) "FizzBuzz"
+    (zero? (rem n 3))  "Fizz"
+    (zero? (rem n 5))  "Buzz"
+    :else              (str n)))
+
+(println (map fizzbuzz (range 1 16)))
+
+;; macros funcionam
+(defmacro unless (p a b) `(if (not ~p) ~a ~b))
+(println (unless false :sim :nao))
+
+;; estruturas persistentes
+(def m {:a 1 :b {:c 2}})
+(println (assoc-in m [:b :c] 99))
+(println m)</textarea
+                    >
+                </div>
+                <div>
+                    <label for="saida">Saída</label>
+                    <pre id="saida"></pre>
+                </div>
+            </div>
+
+            <footer>
+                <strong>Não disponível no browser:</strong>
+                <code>slurp</code>, <code>spit</code>, <code>require</code> e
+                <code>load-file</code> — todos dependem de sistema de arquivos e
+                falham com mensagem explícita. Veja
+                <code>docs/browser.md</code>.
+            </footer>
+        </main>
+
+        <script src="../../dist/mini-clojure.global.js"></script>
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const saida = $("saida");
+
+            function executar(modo) {
+                const linhas = [];
+                const original = console.log;
+                console.log = (...args) =>
+                    linhas.push(args.map(String).join(" "));
+
+                try {
+                    const opts = $("sandbox").checked ? { sandbox: true } : {};
+                    if (modo === "compilar") {
+                        console.log = original;
+                        saida.className = "";
+                        saida.textContent = MiniClojure.compileSource(
+                            $("fonte").value,
+                        );
+                        return;
+                    }
+
+                    const env = MiniClojure.createGlobalEnv(opts);
+                    const valor = MiniClojure.runSource($("fonte").value, {
+                        env,
+                    });
+                    if (valor !== null && valor !== undefined) {
+                        linhas.push("=> " + MiniClojure.formatResult(valor));
+                    }
+                    saida.className = "";
+                } catch (erro) {
+                    linhas.push(erro.message);
+                    saida.className = "erro";
+                } finally {
+                    console.log = original;
+                }
+
+                if (modo !== "compilar") saida.textContent = linhas.join("\n");
+            }
+
+            $("rodar").onclick = () => executar("avaliar");
+            $("compilar").onclick = () => executar("compilar");
+            $("limpar").onclick = () => {
+                saida.textContent = "";
+                saida.className = "";
+            };
+            executar("avaliar");
+        </script>
+    </body>
+</html>

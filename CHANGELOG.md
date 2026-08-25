@@ -7,6 +7,57 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [8.0.0] — 2026-08-25
+
+Release **R6 — Segurança, sandbox e interop**.
+
+### Adicionado
+
+- **Modo sandbox** ([#25]): `--sandbox` na CLI, `{ sandbox: true }` na API.
+    - Whitelist fechada de globais (`Math`, `Date`, `JSON`, `console`, ...);
+      qualquer outro `js/...` é recusado. `--allow` libera nomes extras.
+    - `slurp`, `spit`, `require` e `load-file` são bloqueados — um sandbox que
+      fecha `js/process` mas deixa `slurp` aberto não fecha nada.
+    - Membros perigosos bloqueados (`constructor`, `prototype`, `__proto__`).
+      Sem isso, `x.constructor.constructor` chega em `Function` e daí em `eval`
+      a partir de **qualquer** objeto.
+    - A política mora numa `WeakMap` fora do ambiente, para o código avaliado
+      não conseguir desligar o próprio sandbox com um `def`.
+- **Operador `.-`** ([#26]): lê a propriedade **sem chamá-la**. A regra do `.`
+  (função → chama) tornava impossível pegar um método como valor.
+- **`js/` com caminho pontuado** ([#26]): `js/Math.PI`, `js/JSON.stringify`.
+- **Suporte a browser** ([#27]):
+    - `src/core/Host.ts` abstrai o que depende do ambiente. O runtime deixou de
+      importar `fs`/`path` — era isso que impedia qualquer bundler.
+    - Dois bundles prontos para `<script>`: `dist/mini-clojure.global.js`
+      (interpretador + compilador) e `dist/runtime.global.js` (para o target
+      `iife`).
+    - Novo subpath `mini-clojure-ts/browser` e condição `browser` no `exports`,
+      então bundlers escolhem a variante certa sozinhos.
+    - Demo em `examples/browser/index.html`, sem servidor.
+- Documentação: [`docs/interop.md`](docs/interop.md) com o contrato completo
+  e os limites do sandbox, e [`docs/browser.md`](docs/browser.md).
+
+### Modificado
+
+- **`fs` e `path` saíram do grafo do runtime.** `Modules.ts` e a stdlib passam
+  pelo host; os entrypoints de Node instalam `NODE_HOST`.
+- A API browser-safe foi extraída para `src/core/Api.ts`. `src/index.ts`
+  continua exportando exatamente o mesmo, mais `runFile`/`compileFile`.
+- `createGlobalEnv`, `runSource` e `runFile` aceitam opções de sandbox.
+- `slurp`, `spit`, `require` e `load-file` passam a checar o host e falhar com
+  mensagem explicando o ambiente, em vez de um erro genérico.
+- `esbuild` entra como devDependency, usado no passo de build dos bundles.
+
+### ⚠️ Limite documentado
+
+O sandbox roda **no mesmo realm** do host. Ele eleva o custo de um escape e
+cobre as rotas conhecidas, mas **não é uma fronteira de segurança** contra
+código adversário determinado, e não protege contra laço infinito nem consumo
+de memória. Para isolamento real, use `node:vm` com contexto separado, um
+Worker ou um processo. O **código compilado não é sandboxado** — o sandbox é
+um recurso do interpretador.
+
 ## [7.1.0] — 2026-08-25
 
 Segunda parte do **R5 — Compilador de verdade**, que fecha a release.
@@ -200,7 +251,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...HEAD
+[8.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...v8.0.0
 [7.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...v7.0.0
 [6.0.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.0...v6.0.1
@@ -226,4 +278,7 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#22]: https://github.com/BrunoL28/mini-clojure-ts/issues/22
 [#23]: https://github.com/BrunoL28/mini-clojure-ts/issues/23
 [#24]: https://github.com/BrunoL28/mini-clojure-ts/issues/24
+[#25]: https://github.com/BrunoL28/mini-clojure-ts/issues/25
+[#26]: https://github.com/BrunoL28/mini-clojure-ts/issues/26
+[#27]: https://github.com/BrunoL28/mini-clojure-ts/issues/27
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

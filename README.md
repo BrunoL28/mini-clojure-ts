@@ -33,6 +33,8 @@
 - [Biblioteca Padrão](#biblioteca-padrão)
 - [Módulos](#módulos)
 - [Compilador](#compilador)
+- [Interop e Sandbox](#interop-e-sandbox)
+- [No Browser](#no-browser)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -379,23 +381,36 @@ or
 ### CLI
 
 ```sh
-mini-clj                       # REPL
-mini-clj app.clj               # executa um arquivo
-mini-clj -e '(reduce + [1 2 3])'   # avalia e imprime
-mini-clj -t app.clj             # compila para app.mjs
+mini-clj                              # REPL
+mini-clj app.clj                      # executa um arquivo
+mini-clj --sandbox app.clj            # executa código não confiável
+mini-clj -e '(reduce + [1 2 3])'      # avalia e imprime
+mini-clj -t app.clj                   # compila para app.mjs
 mini-clj -t app.clj --target cjs --out-dir build -s -w
-mini-clj --help                # todas as opções
+mini-clj --help                       # todas as opções
 ```
 
-| Opção                   | Descrição                                      |
-| ----------------------- | ---------------------------------------------- |
-| `-e`, `--eval <código>` | Avalia uma expressão e imprime o resultado     |
-| `-f`, `--file <arq>`    | Executa um arquivo `.clj`                      |
-| `-t`, `--transpile`     | Transpila em vez de executar                   |
-| `-o`, `--out <arq>`     | Saída da transpilação (padrão: `<entrada>.js`) |
-| `--repl`                | Força o REPL                                   |
-| `-h`, `--help`          | Ajuda                                          |
-| `-v`, `--version`       | Versão                                         |
+| Opção                   | Descrição                                        |
+| ----------------------- | ------------------------------------------------ |
+| `-e`, `--eval <código>` | Avalia uma expressão e imprime o resultado       |
+| `-f`, `--file <arq>`    | Executa um arquivo `.clj`                        |
+| `--sandbox`             | Interop restrito: sem IO, sem módulos, whitelist |
+| `--allow <a,b>`         | Libera globais extras no sandbox                 |
+| `--repl`                | Força o REPL                                     |
+| `-h`, `--help`          | Ajuda                                            |
+| `-v`, `--version`       | Versão                                           |
+
+**Compilação** (com `-t`):
+
+| Opção                    | Descrição                                     |
+| ------------------------ | --------------------------------------------- |
+| `-t`, `--transpile`      | Compila em vez de executar                    |
+| `--target <alvo>`        | `esm` (padrão), `cjs` ou `iife`               |
+| `-o`, `--out-file <arq>` | Arquivo de saída                              |
+| `--out-dir <dir>`        | Diretório de saída (nome derivado da entrada) |
+| `--runtime-global <n>`   | Global de onde o `iife` lê o runtime          |
+| `-s`, `--source-map`     | Gera o `.map` e linka no arquivo compilado    |
+| `-w`, `--watch`          | Recompila a cada mudança                      |
 
 ---
 
@@ -551,6 +566,64 @@ compilação**.
 
 ---
 
+## Interop e Sandbox
+
+Contrato completo em **[docs/interop.md](docs/interop.md)**.
+
+```clojure
+js/Math.PI                  ;=> 3.14159...   (caminho com ponto)
+(. "repeat" "ab" 3)         ;=> "ababab"     (. chama quando é função)
+(.- "toUpperCase" "abc")    ;=> #<Function>  (.- nunca chama)
+(new js/Date 2020 0 1)
+```
+
+Para rodar código não confiável:
+
+```sh
+mini-clj --sandbox app.clj
+mini-clj --sandbox --allow Intl app.clj
+```
+
+| No sandbox                 | Comportamento                                         |
+| -------------------------- | ----------------------------------------------------- |
+| `js/...`                   | Só a whitelist (`Math`, `Date`, `JSON`, `console`, …) |
+| `slurp` / `spit`           | Bloqueados                                            |
+| `require` / `load-file`    | Bloqueados                                            |
+| `constructor`, `__proto__` | Bloqueados — são a rota para `Function`/`eval`        |
+
+> ⚠️ O sandbox roda **no mesmo realm** do host. Ele eleva o custo de um escape
+> e cobre as rotas conhecidas, mas **não é uma fronteira de segurança** contra
+> código adversário, e não protege contra laço infinito. Para isolamento real,
+> use `node:vm` com contexto separado, um Worker ou um processo. O código
+> **compilado não é sandboxado**.
+
+---
+
+## No Browser
+
+Guia completo em **[docs/browser.md](docs/browser.md)**. Demo em
+[`examples/browser/index.html`](examples/browser/index.html).
+
+```html
+<script src="dist/mini-clojure.global.js"></script>
+<script>
+    console.log(MiniClojure.runSource("(reduce + [1 2 3])")); // 6
+</script>
+```
+
+Interpretador, macros, estruturas persistentes, sandbox e **compilador**
+funcionam igual. Só o que depende de sistema de arquivos não vai: `slurp`,
+`spit`, `require` e `load-file` — e falham com mensagem explícita.
+
+Via bundler, a condição `browser` do `package.json` escolhe a variante certa
+sozinha:
+
+```js
+import { runSource } from "mini-clojure-ts/browser";
+```
+
+---
+
 ### API Pública (Embed)
 
 O Mini-Clojure-TS pode ser usado como uma biblioteca em outros projetos TypeScript/JavaScript.
@@ -585,7 +658,7 @@ console.log(ast);
 - [x] **v6.0:** Loader e Cache, Namespaces (decisão: sem `ns`), Empacotamento
 - [x] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time
 - [x] **v7.1:** Output e Targets (`esm`/`cjs`/`iife`), Source Maps, Watch Mode
-- [ ] **v8.0:** Sandbox/Whitelist, Definição de Política de Interop
+- [x] **v8.0:** Sandbox/Whitelist, Política de Interop, Build para Browser
 
 ---
 

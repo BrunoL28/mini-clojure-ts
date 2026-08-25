@@ -1,11 +1,11 @@
 {
     "name": "mini-clojure-ts",
-    "version": "7.1.0",
+    "version": "8.0.0",
     "description": "Interpretador, REPL e transpilador de um subset de Clojure escrito em TypeScript.",
     "main": "./dist/index.js",
     "type": "module",
     "scripts": {
-        "build": "tsc && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}))\"",
+        "build": "tsc && tsc -p tsconfig.cjs.json && node scripts/post-build.mjs",
         "typecheck": "tsc -p tsconfig.check.json",
         "start": "tsx src/cli.ts",
         "lint": "eslint .",
@@ -43,6 +43,7 @@
         "@types/node": "^25.0.3",
         "@typescript-eslint/eslint-plugin": "^8.51.0",
         "@typescript-eslint/parser": "^8.51.0",
+        "esbuild": "^0.27.2",
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",
         "husky": "^9.1.7",
@@ -60,10 +61,19 @@
         },
         "./runtime": {
             "types": "./dist/runtime/index.d.ts",
-            "import": "./dist/runtime/index.js",
-            "require": "./dist/cjs/runtime/index.js"
+            "browser": "./dist/runtime/index.js",
+            "import": "./dist/runtime/node.js",
+            "require": "./dist/cjs/runtime/node.js"
         },
-        "./package.json": "./package.json"
+        "./runtime/browser": {
+            "types": "./dist/runtime/index.d.ts",
+            "import": "./dist/runtime/index.js"
+        },
+        "./package.json": "./package.json",
+        "./browser": {
+            "types": "./dist/browser/index.d.ts",
+            "import": "./dist/browser/index.js"
+        }
     },
     "bin": {
         "mini-clj": "./dist/cli.js"
@@ -71,6 +81,7 @@
     "files": [
         "dist",
         "docs",
+        "examples",
         "README.md",
         "ROADMAP.md",
         "CHANGELOG.md",

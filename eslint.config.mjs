@@ -20,6 +20,18 @@ export default defineConfig([
         ignores: ["dist/**", "node_modules/**", "src/node_modules/**"],
     },
     {
+        // Scripts de build rodam em Node puro, fora do parser de TypeScript.
+        files: ["**/*.mjs", "scripts/**"],
+        languageOptions: {
+            globals: {
+                console: "readonly",
+                process: "readonly",
+                URL: "readonly",
+                __dirname: "readonly",
+            },
+        },
+    },
+    {
         extends: compat.extends(
             "eslint:recommended",
             "plugin:@typescript-eslint/recommended",

@@ -1,5 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
 import { Env } from "./Environment.js";
 import { evaluate } from "./Evaluator.js";
 import { trampoline } from "./Trampoline.js";
@@ -7,6 +5,7 @@ import { tokenize } from "./Tokenizer.js";
 import { parse } from "./Parser.js";
 import { ClojureNamespace } from "../types/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
+import { getHost } from "./Host.js";
 
 /** Nome da var dinâmica que guarda o arquivo em execução. */
 export const CURRENT_FILE = "*file*";
@@ -62,11 +61,12 @@ export function resolveModulePath(
     spec: string,
     fromFile: string | null,
 ): string {
-    const withExt = path.extname(spec) === "" ? `${spec}.clj` : spec;
-    if (path.isAbsolute(withExt)) return withExt;
+    const host = getHost();
+    const withExt = host.extname(spec) === "" ? `${spec}.clj` : spec;
+    if (host.isAbsolute(withExt)) return withExt;
 
-    const baseDir = fromFile ? path.dirname(fromFile) : process.cwd();
-    return path.resolve(baseDir, withExt);
+    const baseDir = fromFile ? host.dirname(fromFile) : host.cwd();
+    return host.resolve(baseDir, withExt);
 }
 
 /**
@@ -77,11 +77,17 @@ export function resolveModulePath(
  * @return {any} O valor da última expressão.
  */
 export function evaluateFile(absPath: string, env: Env): any {
-    if (!fs.existsSync(absPath)) {
+    const host = getHost();
+    if (!host.hasFileSystem) {
+        throw new ClojureError(
+            `load-file não está disponível neste ambiente (host: ${host.name}).`,
+        );
+    }
+    if (!host.exists(absPath)) {
         throw new ClojureError(`Arquivo não encontrado: ${absPath}`);
     }
 
-    const source = fs.readFileSync(absPath, "utf-8");
+    const source = host.readFile(absPath);
     const tokens = tokenize(source, absPath);
 
     let last: any = null;
@@ -102,6 +108,13 @@ export function evaluateFile(absPath: string, env: Env): any {
  * @return {ModuleRecord} O registro do módulo (do cache, se já carregado).
  */
 export function loadModule(spec: string, requiringEnv: Env): ModuleRecord {
+    const host = getHost();
+    if (!host.hasFileSystem) {
+        throw new ClojureError(
+            `require não está disponível neste ambiente (host: ${host.name}).`,
+        );
+    }
+
     const absPath = resolveModulePath(spec, currentFile(requiringEnv));
 
     const cached = moduleCache.get(absPath);
@@ -113,7 +126,7 @@ export function loadModule(spec: string, requiringEnv: Env): ModuleRecord {
         );
     }
 
-    if (!fs.existsSync(absPath)) {
+    if (!getHost().exists(absPath)) {
         throw new ClojureError(
             `Módulo não encontrado: '${spec}' (resolvido para ${absPath})`,
         );
@@ -130,7 +143,7 @@ export function loadModule(spec: string, requiringEnv: Env): ModuleRecord {
             path: absPath,
             env: moduleEnv,
             namespace: new ClojureNamespace(
-                path.basename(absPath, path.extname(absPath)),
+                getHost().basename(absPath, getHost().extname(absPath)),
                 absPath,
                 moduleEnv,
             ),

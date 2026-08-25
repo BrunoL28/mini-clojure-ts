@@ -359,30 +359,30 @@ Escolher um dos caminhos:
 
 ## DoD
 
-- [ ] Modo sandbox para interpretador (whitelist)
-- [ ] Política de interop documentada e testada
-- [ ] (Opcional) build browser ou separação de runtime Node vs browser
+- [x] Modo sandbox para interpretador (whitelist)
+- [x] Política de interop documentada e testada (`docs/interop.md`)
+- [x] Build browser + separação de runtime Node vs browser
 
 ## Épicos
 
 ### E1. Sandbox/whitelist [SEC][INT]
 
-- [ ] `--sandbox` desabilita acesso direto a `globalThis`
-- [ ] whitelist configurável: ex.: `Math`, `Date`, `console` (subset)
-- [ ] bloquear `Function`, `eval`, `process` (Node), `require` (se aplicável)
+- [x] `--sandbox` desabilita acesso direto a `globalThis`
+- [x] whitelist configurável via `--allow`
+- [x] bloquear `Function`, `eval`, `process`, `require`, `slurp`/`spit` e `constructor`
 
 ### E2. Política de interop [SEC][DOC]
 
-- [ ] Doc “Interop Contract”:
-    - como `js/...` resolve símbolos
-    - como `.` acessa propriedade vs método
-    - como `new` funciona
-- [ ] Testes cobrindo edge cases
+- [x] Doc “Interop Contract” em `docs/interop.md`:
+    - [x] como `js/...` resolve símbolos (com caminho pontuado)
+    - [x] como `.` acessa propriedade vs método, e o novo `.-`
+    - [x] como `new` funciona
+- [x] Testes cobrindo edge cases, interpretado e compilado
 
 ### E3. Compatibilidade browser (opcional) [DX]
 
-- [ ] build sem fs/readline
-- [ ] REPL via web (ou runner simples)
+- [x] build sem fs/readline (abstração de host)
+- [x] Runner web em `examples/browser/index.html`
 
 ---
 

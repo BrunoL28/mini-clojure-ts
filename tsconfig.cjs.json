@@ -9,5 +9,5 @@
         "declarationMap": false
     },
     "include": [],
-    "files": ["src/runtime/index.ts"]
+    "files": ["src/runtime/node.ts"]
 }
