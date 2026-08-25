@@ -211,9 +211,9 @@ Nenhuma (primeira release).
 
 ## DoD
 
-- [ ] Conjunto mínimo de funções de seq/coleção implementado e testado
-- [ ] Macros utilitárias padrão disponíveis (mesmo subset)
-- [ ] Docs da stdlib (tabela no README + docs/stdlib.md)
+- [x] Conjunto mínimo de funções de seq/coleção implementado e testado
+- [x] Macros utilitárias padrão disponíveis (mesmo subset)
+- [x] Docs da stdlib (tabela no README + docs/stdlib.md)
 
 ## Épicos
 
@@ -221,30 +221,30 @@ Nenhuma (primeira release).
 
 Adicionar (com testes):
 
-- [ ] `reduce`, `filter`, `some`, `every?`
-- [ ] `take`, `drop`, `range`, `repeat`
-- [ ] `apply`, `comp`, `partial`, `identity`
-- [ ] `into`, `seq`, `reverse` (se fizer sentido)
-- [ ] `contains?`, `dissoc`, `merge`, `update`, `assoc-in/get-in/update-in` (subset)
+- [x] `reduce`, `filter`, `some`, `every?`
+- [x] `take`, `drop`, `range`, `repeat`
+- [x] `apply`, `comp`, `partial`, `identity`
+- [x] `into`, `seq`, `reverse` (se fizer sentido)
+- [x] `contains?`, `dissoc`, `merge`, `update`, `assoc-in/get-in/update-in` (subset)
 
 ### E2. Predicados e tipos [LIB]
 
-- [ ] `map?`, `seq?`, `list?`, `keyword?`, `number?`, `string?`, `fn?`, `nil?`
-- [ ] Testes para cada predicado
+- [x] `map?`, `seq?`, `list?`, `keyword?`, `number?`, `string?`, `fn?`, `nil?`
+- [x] Testes para cada predicado
 
 ### E3. Macros utilitárias [LIB]
 
-- [ ] `when`, `when-not`
-- [ ] `and`, `or` (como macros, com short-circuit)
-- [ ] `cond`
-- [ ] `->`, `->>` (threading macros)
-- [ ] `defn`
+- [x] `when`, `when-not`
+- [x] `and`, `or` (como formas especiais, com short-circuit)
+- [x] `cond`
+- [x] `->`, `->>` (threading macros)
+- [x] `defn`
 
 ### E4. IO/util [LIB][DX]
 
-- [ ] `assert` (com mensagem)
-- [ ] `time` (medição simples)
-- [ ] (Node) `slurp` / `spit` (se fizer sentido para produto)
+- [x] `assert` (com mensagem)
+- [x] `time` (medição simples)
+- [x] (Node) `slurp` / `spit` (Node-only, documentado)
 
 ---
 

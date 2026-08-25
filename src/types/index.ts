@@ -105,6 +105,22 @@ export class ClojureSymbol implements ILocatable {
 export class ClojureVector extends Array<any> implements ILocatable {
     public loc?: SourceLocation | undefined;
 
+    /**
+     * Cria um vetor a partir dos itens informados.
+     *
+     * SEMPRE use isto em vez de `new ClojureVector(...items)`: como
+     * `ClojureVector` estende `Array`, `new ClojureVector(3)` cai no construtor
+     * `Array(length)` e produz um vetor esparso de 3 buracos em vez de `[3]`.
+     *
+     * @param {any[]} items Os itens do vetor.
+     * @return {ClojureVector} O vetor construído.
+     */
+    static override of(...items: any[]): ClojureVector {
+        const vector = new ClojureVector();
+        for (const item of items) vector.push(item);
+        return vector;
+    }
+
     toString(): string {
         return `[${this.map(String).join(" ")}]`;
     }

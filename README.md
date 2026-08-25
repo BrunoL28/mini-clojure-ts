@@ -30,6 +30,7 @@
     - [Installation](#installation)
     - [Usage](#usage)
     - [Testing](#testing)
+- [Biblioteca Padrão](#biblioteca-padrão)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -405,6 +406,46 @@ The project includes a comprehensive suite of `.clj` files to test various featu
 ❯ pnpm start -- -t tests/compilador.clj
 ```
 
+As **suítes de aceitação** (executadas no CI) ficam em `tests/fixtures/` e rodam via `node:test`:
+
+```
+❯ pnpm test
+```
+
+| Fixture                 | Cobre                                        |
+| ----------------------- | -------------------------------------------- |
+| `semantics_suite.clj`   | Macros, destructuring, atoms, try/catch, TCO |
+| `stdlib_seq_suite.clj`  | Sequências, helpers funcionais e mapas       |
+| `predicates_suite.clj`  | Predicados e tipos                           |
+| `core_macros_suite.clj` | `defn` `when` `and` `or` `cond` `->` `->>`   |
+| `io_util_suite.clj`     | `assert` `time` `slurp` `spit`               |
+
+---
+
+## Biblioteca Padrão
+
+O core do Mini-Clojure-TS está documentado em **[docs/stdlib.md](docs/stdlib.md)** — a referência completa de aritmética, predicados, coleções, sequências, mapas, macros utilitárias e IO.
+
+Resumo do que existe hoje:
+
+| Grupo                  | Formas                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Aritmética**         | `+` `-` `*` `/` `rem` `mod` `quot` `inc` `dec` `max` `min` `abs`                                                                                                                                             |
+| **Comparação/lógica**  | `=` `not=` `identical?` `<` `>` `<=` `>=` `not`                                                                                                                                                              |
+| **Predicados**         | `nil?` `some?` `true?` `false?` `boolean?` `number?` `string?` `keyword?` `symbol?` `fn?` `macro?` `map?` `vector?` `list?` `seq?` `coll?` `atom?` `zero?` `pos?` `neg?` `even?` `odd?` `empty?` `contains?` |
+| **Coleções**           | `list` `vector` `hash-map` `first` `second` `last` `rest` `count` `nth` `cons` `conj` `concat`                                                                                                               |
+| **Sequências**         | `map` `filter` `remove` `reduce` `some` `every?` `not-any?` `take` `drop` `range` `repeat` `reverse` `seq` `into`                                                                                            |
+| **Helpers funcionais** | `identity` `apply` `comp` `partial`                                                                                                                                                                          |
+| **Mapas**              | `get` `assoc` `dissoc` `keys` `vals` `merge` `update` `get-in` `assoc-in` `update-in`                                                                                                                        |
+| **Macros utilitárias** | `defn` `when` `when-not` `and` `or` `cond` `->` `->>`                                                                                                                                                        |
+| **IO/util**            | `print` `println` `prn` `pr-str` `str` `read-string` `assert` `time` `slurp`¹ `spit`¹                                                                                                                        |
+| **Átomos/interop**     | `atom` `deref`/`@` `reset!` `swap!` `new` `.` `js/…` `throw`                                                                                                                                                 |
+
+¹ Node-only (usa `fs`).
+
+> **Truthiness:** apenas `false` e `nil` são falsos — `0`, `""` e `[]` são verdadeiros.
+> `and`, `or`, `cond`, `when`, `when-not`, `->` e `->>` são formas especiais com avaliação preguiçosa (short-circuit garantido).
+
 ---
 
 ### API Pública (Embed)
@@ -436,8 +477,8 @@ console.log(ast);
 ## Roadmap
 
 - [x] **v3.0:** Rastreabilidade de Erros, CI e testes automatizados, Separação Engine/CLI, Multiline + Histórico no REPL
-- [ ] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
-- [ ] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
+- [x] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
+- [x] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
 - [ ] **v6.0:** Loader e Cache, Namespaces, Empacotamento
 - [ ] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
 - [ ] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop

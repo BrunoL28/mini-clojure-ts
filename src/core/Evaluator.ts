@@ -30,7 +30,7 @@ function evalQuasiquote(ast: any, env: Env): any {
         return ast.map((item) => evalQuasiquote(item, env));
     }
     if (ast instanceof ClojureVector) {
-        return new ClojureVector(
+        return ClojureVector.of(
             ...ast.map((item) => evalQuasiquote(item, env)),
         );
     }
@@ -104,7 +104,7 @@ function resolveDefault(
     return null;
 }
 
-function bind(env: Env, shape: any, value: any) {
+export function bind(env: Env, shape: any, value: any) {
     let key = shape;
     if (shape instanceof ClojureSymbol) key = shape.value;
 
@@ -139,7 +139,7 @@ function bind(env: Env, shape: any, value: any) {
                     throw new InvalidParamError("Esperado símbolo após &");
 
                 const remaining = listValue.slice(valIndex);
-                bind(env, nextParam, new ClojureVector(...remaining));
+                bind(env, nextParam, ClojureVector.of(...remaining));
                 break;
             }
 
@@ -315,7 +315,7 @@ export function evaluate(x: Expression, env: Env): any {
             const evaluatedItems = x.map((item) =>
                 trampoline(evaluate(item, env)),
             );
-            const v = new ClojureVector(...evaluatedItems);
+            const v = ClojureVector.of(...evaluatedItems);
             if (x.loc) v.loc = x.loc;
             return v;
         }
@@ -326,8 +326,6 @@ export function evaluate(x: Expression, env: Env): any {
 
             let opName = op;
             if (op instanceof ClojureSymbol) opName = op.value;
-
-            // --- SPECIAL FORMS: MACROEXPAND ---
 
             if (opName === "macroexpand-1") {
                 if (args.length !== 1)
@@ -409,6 +407,113 @@ export function evaluate(x: Expression, env: Env): any {
                 if (condition !== false && condition !== null)
                     return evaluate(thenExpr!, env);
                 return elseExpr ? evaluate(elseExpr!, env) : null;
+            }
+
+            // --- MACROS UTILITÁRIAS (R3/E3) ---
+            // Implementadas como formas especiais para garantir avaliação
+            // preguiçosa (short-circuit) dos argumentos.
+
+            if (opName === "when" || opName === "when-not") {
+                if (args.length === 0)
+                    throw new InvalidParamError(
+                        `${opName} requer uma condição`,
+                    );
+
+                const test = trampoline(evaluate(args[0]!, env));
+                const isTrue = test !== false && test !== null;
+                const shouldRun = opName === "when" ? isTrue : !isTrue;
+                if (!shouldRun) return null;
+
+                const body = args.slice(1);
+                for (let i = 0; i < body.length - 1; i++) {
+                    trampoline(evaluate(body[i]!, env));
+                }
+                if (body.length > 0)
+                    return evaluate(body[body.length - 1]!, env);
+                return null;
+            }
+
+            if (opName === "and") {
+                if (args.length === 0) return true;
+                for (let i = 0; i < args.length - 1; i++) {
+                    const value = trampoline(evaluate(args[i]!, env));
+                    if (value === false || value === null) return value;
+                }
+                return evaluate(args[args.length - 1]!, env);
+            }
+
+            if (opName === "or") {
+                if (args.length === 0) return null;
+                for (let i = 0; i < args.length - 1; i++) {
+                    const value = trampoline(evaluate(args[i]!, env));
+                    if (value !== false && value !== null) return value;
+                }
+                return evaluate(args[args.length - 1]!, env);
+            }
+
+            if (opName === "cond") {
+                if (args.length % 2 !== 0) {
+                    throw new InvalidParamError(
+                        "cond requer um número par de formas (teste expressão)",
+                    );
+                }
+                for (let i = 0; i < args.length; i += 2) {
+                    const test = trampoline(evaluate(args[i]!, env));
+                    if (test !== false && test !== null) {
+                        return evaluate(args[i + 1]!, env);
+                    }
+                }
+                return null;
+            }
+
+            if (opName === "->" || opName === "->>") {
+                if (args.length === 0) {
+                    throw new InvalidParamError(
+                        `${opName} requer ao menos o valor inicial`,
+                    );
+                }
+
+                const threadLast = opName === "->>";
+                let form: any = args[0];
+
+                for (let i = 1; i < args.length; i++) {
+                    const step = args[i];
+                    const isCallForm =
+                        Array.isArray(step) &&
+                        !(step instanceof ClojureVector) &&
+                        step.length > 0;
+
+                    let next: any[];
+                    if (isCallForm) {
+                        const [head, ...rest] = step as any[];
+                        next = threadLast
+                            ? [head, ...rest, form]
+                            : [head, form, ...rest];
+                    } else {
+                        next = [step, form];
+                    }
+
+                    const loc = (step as any)?.loc ?? (x as any).loc;
+                    if (loc) (next as any).loc = loc;
+                    form = next;
+                }
+
+                return evaluate(form, env);
+            }
+
+            // --- IO/UTIL (R3/E4) ---
+
+            if (opName === "time") {
+                if (args.length !== 1) {
+                    throw new InvalidParamError(
+                        "time requer exatamente 1 expressão",
+                    );
+                }
+                const startedAt = performance.now();
+                const value = trampoline(evaluate(args[0]!, env));
+                const elapsed = performance.now() - startedAt;
+                console.log(`Elapsed time: ${elapsed.toFixed(4)} msecs`);
+                return value;
             }
 
             if (opName === "quote") return args[0];

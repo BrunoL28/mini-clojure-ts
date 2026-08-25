@@ -137,3 +137,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Artefatos temporários das suítes de teste
+tests/fixtures/.tmp-*
