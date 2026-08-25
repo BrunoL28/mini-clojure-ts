@@ -300,35 +300,35 @@ Escolher um dos caminhos:
 
 ## DoD
 
-- [ ] Pipeline: parse → macroexpand → IR/AST → codegen
-- [ ] Compila `let`, mapas, keywords, try/catch, atoms (subset definido)
+- [x] Pipeline: parse → macroexpand → desugar → codegen
+- [x] Compila `let`, mapas, keywords, try/catch, atoms (subset definido)
 - [ ] Output com targets (`cjs`/`esm`/`iife`) e sem `globalThis` por padrão
 - [ ] Source maps funcionando para stack traces no Node
-- [ ] Testes de equivalência (interpretado vs compilado) em um conjunto de programas
+- [x] Testes de equivalência (interpretado vs compilado) em um conjunto de programas
 
 ## Épicos
 
 ### E1. Paridade mínima com interpretador [COMP]
 
-- [ ] `let` + destructuring
-- [ ] mapas `{}` + keywords
-- [ ] `try/catch`
-- [ ] atoms (`atom`, `deref`, `reset!`, `swap!`)
-- [ ] decisão documentada: quote/quasiquote (compile-time only vs runtime)
+- [x] `let` + destructuring (sequência e mapa)
+- [x] mapas `{}` + keywords
+- [x] `try/catch`
+- [x] atoms (`atom`, `deref`, `reset!`, `swap!`)
+- [x] decisão documentada: quote/quasiquote **compile-time only**
 
 ### E2. Runtime de suporte [COMP]
 
-- [ ] Introduzir runtime leve para:
-    - Keyword
-    - ClojureVector / ClojureMap (ou abstração equivalente)
-    - igualdade estrutural (se necessário no compilado)
-- [ ] Garantir semântica equivalente ao interpretador (ou documentar divergências)
+- [x] Introduzir runtime em `src/runtime/` para:
+    - [x] Keyword (internada)
+    - [x] ClojureVector / ClojureMap
+    - [x] igualdade estrutural — a stdlib do interpretador é reusada
+- [x] Semântica equivalente ao interpretador; divergências em `docs/compiler.md`
 
 ### E3. Macroexpand em compile-time [COMP][INT]
 
-- [ ] Macros definidas no arquivo expandem durante compilação
-- [ ] `macroexpand` testável
-- [ ] Erros na expansão apontam loc
+- [x] Macros definidas no arquivo expandem durante compilação
+- [x] Expansão testada (macro simples, aninhada e com quasiquote)
+- [x] Erros na expansão apontam loc
 
 ### E4. Output e targets [COMP][DX]
 

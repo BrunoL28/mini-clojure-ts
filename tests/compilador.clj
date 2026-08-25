@@ -16,4 +16,4 @@
 (print "Verificação:" (verificar resultado))
 
 ;; Teste de Interop
-(. log js/console "Isto é um console.log nativo do JS!")
+(. "log" js/console "Isto é um console.log nativo do JS!")

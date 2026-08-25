@@ -7,6 +7,58 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [7.0.0] — 2026-08-25
+
+Primeira parte do **R5 — Compilador de verdade**. O transpilador deixou de ser
+um demo: agora existe um pipeline real e **paridade verificada** com o
+interpretador.
+
+### Adicionado
+
+- **Pipeline de compilação** ([#19], [#21]): parse → macroexpand → desugar →
+  coleta de globais → codegen, em `src/core/Compiler.ts`.
+- **Runtime de suporte** ([#20]) em `src/runtime/`, publicado no subpath
+  `mini-clojure-ts/runtime`. **Reusa a stdlib do interpretador** em vez de
+  manter uma segunda implementação em JS — é o que torna a paridade real.
+- **Paridade de formas** ([#19]): `let` (com destructuring de sequência e de
+  mapa, incluindo `:keys`, `:as`, `:or` e renomeação), mapas `{}`, keywords,
+  `try/catch`, atoms, `and`/`or` com short-circuit, `cond`, `when`, `when-not`,
+  `->`, `->>`, `defn`, `quote` e `quasiquote`.
+- **Macros em compile-time** ([#21]): `defmacro` é executado durante a
+  compilação e não gera código; as chamadas expandem antes do codegen,
+  recursivamente.
+- `compileSource` aceita `runtimeImport` e `emitImport`.
+- Novo **[`docs/compiler.md`](docs/compiler.md)** com o pipeline, a decisão
+  sobre `quote`/`quasiquote` e a tabela de divergências.
+
+### Modificado
+
+- **O formato do JavaScript gerado mudou por completo** (por isso a major).
+  O código emitido é um módulo ESM que importa o runtime.
+- **`globalThis` eliminado** ([#20]): cada `def` vira um `let` no escopo do
+  módulo.
+- `if` passa a usar a truthiness de Clojure (`$rt.truthy`), então `0` e `""`
+  são verdadeiros no compilado, como já eram no interpretado.
+- Conversão de nomes agora escapa **palavras reservadas do JavaScript**
+  (`throw` → `$throw`) e qualquer caractere inválido em identificador.
+- Um `def` que sombreia a stdlib passa a ser declarado uma única vez — antes
+  geraria `const` e `let` para o mesmo nome, que é `SyntaxError`.
+- `tests/compilador.clj` corrigido: usava `(. log js/console ...)`, forma que o
+  `.` nunca aceitou. Com `(. "log" js/console ...)` o arquivo passa a rodar
+  **interpretado**, o que nunca tinha acontecido.
+
+### Removido
+
+- `src/core/Transpiler.ts`, substituído por `src/core/Compiler.ts`.
+- `runtimeScript` de `src/core/Runtime.ts` — o runtime inline em string foi
+  substituído pelo módulo `src/runtime/`.
+
+### Divergências documentadas
+
+`require`, `load-file`, `macroexpand` e `macroexpand-1` **não** são suportados
+no código compilado e falham na compilação com mensagem explícita. A lista
+completa está em [`docs/compiler.md`](docs/compiler.md).
+
 ## [6.0.1] — 2026-08-25
 
 ### Corrigido
@@ -111,7 +163,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...HEAD
+[7.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...v7.0.0
 [6.0.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.0...v6.0.1
 [6.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v5.0.0...v6.0.0
 [5.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/4.1.0...v5.0.0
@@ -129,4 +182,7 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#16]: https://github.com/BrunoL28/mini-clojure-ts/issues/16
 [#17]: https://github.com/BrunoL28/mini-clojure-ts/issues/17
 [#18]: https://github.com/BrunoL28/mini-clojure-ts/issues/18
+[#19]: https://github.com/BrunoL28/mini-clojure-ts/issues/19
+[#20]: https://github.com/BrunoL28/mini-clojure-ts/issues/20
+[#21]: https://github.com/BrunoL28/mini-clojure-ts/issues/21
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

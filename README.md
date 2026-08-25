@@ -32,6 +32,7 @@
     - [Testing](#testing)
 - [Biblioteca Padrão](#biblioteca-padrão)
 - [Módulos](#módulos)
+- [Compilador](#compilador)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -502,6 +503,43 @@ math/pi           ;=> 3.14
 
 ---
 
+## Compilador
+
+Referência completa em **[docs/compiler.md](docs/compiler.md)**.
+
+O compilador gera um **módulo ESM** que importa um runtime — sem `globalThis`:
+
+```sh
+mini-clj -t app.clj -o build/app.js
+node build/app.js
+```
+
+```js
+// Gerado por Mini-Clojure-TS. Não edite à mão.
+import * as $rt from "mini-clojure-ts/runtime";
+
+const println = $rt.core["println"];
+let total;
+
+total = $rt.core["+"](1, 2);
+println("total:", total);
+```
+
+**Pipeline:** parse → macroexpand → desugar → codegen.
+
+O runtime **reusa a stdlib do interpretador** em vez de reimplementá-la em JS —
+é o que torna a paridade real. A suíte
+`tests/integration/compiler-parity.test.ts` roda dezenas de programas
+interpretados **e** compilados e exige saída idêntica.
+
+Compila: `let` com destructuring, mapas, keywords, `try/catch`, atoms,
+`and`/`or` com short-circuit, `cond`, `when`, threading macros, `quote`,
+`quasiquote` e macros (expandidas em compile-time).
+
+Não compila (falha com erro explícito): `require`, `load-file`, `macroexpand`.
+
+---
+
 ### API Pública (Embed)
 
 O Mini-Clojure-TS pode ser usado como uma biblioteca em outros projetos TypeScript/JavaScript.
@@ -534,8 +572,9 @@ console.log(ast);
 - [x] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
 - [x] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
 - [x] **v6.0:** Loader e Cache, Namespaces (decisão: sem `ns`), Empacotamento
-- [ ] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
-- [ ] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop
+- [x] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time
+- [ ] **v7.1:** Output e Targets (`esm`/`cjs`/`iife`), Source Maps, Watch Mode
+- [ ] **v8.0:** Sandbox/Whitelist, Definição de Política de Interop
 
 ---
 

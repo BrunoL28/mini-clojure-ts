@@ -5,10 +5,10 @@ import { parse as parseExpr } from "./core/Parser.js";
 import { evaluate } from "./core/Evaluator.js";
 import { initialConfig } from "./stdlib/index.js";
 import { trampoline } from "./core/Trampoline.js";
-import { transpile as transpileExpr } from "./core/Transpiler.js";
+import { compileProgram, DEFAULT_RUNTIME_IMPORT } from "./core/Compiler.js";
+import type { CompileProgramOptions } from "./core/Compiler.js";
 import { type Expression } from "./types/index.js";
 import { prStr } from "./core/Printer.js";
-import { runtimeScript } from "./core/Runtime.js";
 import {
     evaluateFile,
     clearModuleCache,
@@ -22,7 +22,7 @@ export interface RunOptions {
     env?: Env;
 }
 
-export interface CompileOptions {
+export interface CompileOptions extends CompileProgramOptions {
     outFile?: string;
 }
 
@@ -103,12 +103,12 @@ export function runFile(filepath: string, opts: RunOptions = {}): any {
  * @param {string} source O código-fonte a ser compilado.
  * @return {string} O código JavaScript compilado.
  */
-export function compileSource(source: string): string {
-    const expressions = parse(source);
-    const jsHeader = `// Compilado por Mini-Clojure-TS\n`;
-    // INJEÇÃO DO RUNTIME AQUI
-    const jsBody = expressions.map(transpileExpr).join(";\n") + ";";
-    return jsHeader + runtimeScript + "\n" + jsBody;
+export function compileSource(
+    source: string,
+    opts: CompileProgramOptions = {},
+): string {
+    const header = "// Gerado por Mini-Clojure-TS. Não edite à mão.\n";
+    return header + compileProgram(parse(source), opts);
 }
 
 /**
@@ -127,7 +127,7 @@ export function compileFile(
         throw new Error(`Arquivo não encontrado: ${filepath}`);
     }
     const source = fs.readFileSync(filepath, "utf-8");
-    const jsCode = compileSource(source);
+    const jsCode = compileSource(source, opts);
 
     if (opts.outFile) {
         fs.writeFileSync(opts.outFile, jsCode);
@@ -146,4 +146,12 @@ export function formatResult(result: any): string {
     return prStr(result, true);
 }
 
-export { Env, evaluate, tokenize, trampoline, clearModuleCache };
+export {
+    Env,
+    evaluate,
+    tokenize,
+    trampoline,
+    clearModuleCache,
+    compileProgram,
+    DEFAULT_RUNTIME_IMPORT,
+};
