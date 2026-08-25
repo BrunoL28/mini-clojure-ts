@@ -2,9 +2,10 @@ import { describe, it, after } from "node:test";
 import assert from "node:assert";
 import * as fs from "fs";
 import * as path from "path";
-import { createGlobalEnv, parse } from "../../src/index.js";
+import { createGlobalEnv, parse, clearModuleCache } from "../../src/index.js";
 import { evaluate } from "../../src/core/Evaluator.js";
 import { trampoline } from "../../src/core/Trampoline.js";
+import { CURRENT_FILE } from "../../src/core/Modules.js";
 
 const FIXTURES_DIR = path.join(process.cwd(), "tests", "fixtures");
 const TMP_IO_FILE = path.join(FIXTURES_DIR, ".tmp-io-suite.txt");
@@ -24,6 +25,8 @@ function runFixture(filename: string): string {
 
     const source = fs.readFileSync(fixturePath, "utf-8");
     const env = createGlobalEnv();
+    // Sem isso, `require "./modules/..."` resolveria a partir do cwd.
+    env.set(CURRENT_FILE, fixturePath);
     const logs: string[] = [];
     const originalLog = console.log;
 
@@ -65,6 +68,14 @@ describe("Stdlib R3 — suítes de aceitação", () => {
         const output = runFixture("io_util_suite.clj");
         assert.match(output, /--- FIM IO SUITE ---/);
         assert.match(output, /Elapsed time: [\d.]+ msecs/);
+    });
+
+    it("[R4/E1+E2] módulos: loader, cache e alias (#16, #17)", () => {
+        // O cache de módulos é global ao processo; zerar mantém o teste
+        // independente da ordem de execução das suítes.
+        clearModuleCache();
+        const output = runFixture("modules_suite.clj");
+        assert.match(output, /--- FIM MODULES SUITE ---/);
     });
 
     it("assert falha com a mensagem da asserção", () => {

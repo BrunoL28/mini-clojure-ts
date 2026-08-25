@@ -31,6 +31,7 @@
     - [Usage](#usage)
     - [Testing](#testing)
 - [Biblioteca Padrão](#biblioteca-padrão)
+- [Módulos](#módulos)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -379,6 +380,28 @@ or
 ❯ pnpm start -- --transpile tests/compilador.clj
 ```
 
+### CLI
+
+```sh
+mini-clj                       # REPL
+mini-clj app.clj               # executa um arquivo
+mini-clj -e '(reduce + [1 2 3])'   # avalia e imprime
+mini-clj -t app.clj -o build/app.js  # transpila para JS
+mini-clj --help                # todas as opções
+```
+
+| Opção                   | Descrição                                      |
+| ----------------------- | ---------------------------------------------- |
+| `-e`, `--eval <código>` | Avalia uma expressão e imprime o resultado     |
+| `-f`, `--file <arq>`    | Executa um arquivo `.clj`                      |
+| `-t`, `--transpile`     | Transpila em vez de executar                   |
+| `-o`, `--out <arq>`     | Saída da transpilação (padrão: `<entrada>.js`) |
+| `--repl`                | Força o REPL                                   |
+| `-h`, `--help`          | Ajuda                                          |
+| `-v`, `--version`       | Versão                                         |
+
+---
+
 ### Testing
 
 The project includes a comprehensive suite of `.clj` files to test various features:
@@ -448,6 +471,42 @@ Resumo do que existe hoje:
 
 ---
 
+## Módulos
+
+Referência completa em **[docs/modules.md](docs/modules.md)**.
+
+Um módulo é só um arquivo `.clj`. **Não há namespaces** (`ns`/`in-ns`): cada
+módulo roda num ambiente isolado e é exposto por alias.
+
+```clojure
+;; math.clj
+(def pi 3.14)
+(defn soma [a b] (+ a b))
+
+;; main.clj
+(require "./math.clj" :as math)
+(math/soma 1 2)   ;=> 3
+math/pi           ;=> 3.14
+
+;; sem :as, os nomes públicos entram no ambiente atual
+(require "./math.clj")
+(soma 1 2)        ;=> 3
+
+;; load-file: env atual, sempre reexecuta
+(load-file "./setup.clj")
+```
+
+| Regra           | Comportamento                                                 |
+| --------------- | ------------------------------------------------------------- |
+| **Isolamento**  | `def` do módulo não vaza; o alias não expõe a stdlib herdada  |
+| **Cache**       | Um arquivo executa no máximo uma vez por sessão               |
+| **Caminhos**    | Relativos ao **arquivo que requer**; extensão `.clj` opcional |
+| **Superfície**  | Tudo que o módulo define é público (sem `export`)             |
+| **Ciclos**      | Detectados e rejeitados com erro explícito                    |
+| **`load-file`** | Env atual, **sem** cache, devolve a última expressão          |
+
+---
+
 ### API Pública (Embed)
 
 O Mini-Clojure-TS pode ser usado como uma biblioteca em outros projetos TypeScript/JavaScript.
@@ -479,7 +538,7 @@ console.log(ast);
 - [x] **v3.0:** Rastreabilidade de Erros, CI e testes automatizados, Separação Engine/CLI, Multiline + Histórico no REPL
 - [x] **v4.0:** Escapes e erros melhores, `identical` (para ponteiros), Printing legível, Ferramentas de Macro, Destructuring de Mapas
 - [x] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
-- [ ] **v6.0:** Loader e Cache, Namespaces, Empacotamento
+- [x] **v6.0:** Loader e Cache, Namespaces (decisão: sem `ns`), Empacotamento
 - [ ] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time, Output e Targets
 - [ ] **v8.0:** Source Maps, Watch Mode, Sandbox/Whitelist, Definição de Política de Interop
 

@@ -7,12 +7,21 @@ import {
     ClojureMacro,
     ClojureAtom,
     ClojureSymbol,
+    ClojureNamespace,
 } from "../types/index.js";
 import { Env } from "./Environment.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
 import { ClojureReferenceError } from "../errors/ReferenceError.js";
 import { ClojureError } from "../errors/ClojureError.js";
+import { prStr } from "./Printer.js";
 import { Bounce, trampoline } from "./Trampoline.js";
+import {
+    loadModule,
+    moduleExports,
+    evaluateFile,
+    resolveModulePath,
+    currentFile,
+} from "./Modules.js";
 
 function evalQuasiquote(ast: any, env: Env): any {
     if (Array.isArray(ast)) {
@@ -282,6 +291,31 @@ export function evaluate(x: Expression, env: Env): any {
                 return value;
             }
 
+            // alias/membro de um módulo requerido com :as (ex.: math/soma).
+            // O `/` sozinho é a divisão, então exigimos algo antes e depois.
+            const slash = x.value.indexOf("/");
+            if (slash > 0 && slash < x.value.length - 1) {
+                const aliasName = x.value.slice(0, slash);
+                const memberName = x.value.slice(slash + 1);
+
+                let aliasValue: any;
+                try {
+                    aliasValue = env.get(aliasName);
+                } catch {
+                    aliasValue = undefined;
+                }
+
+                if (aliasValue instanceof ClojureNamespace) {
+                    if (!aliasValue.env.hasOwn(memberName)) {
+                        throw new ClojureError(
+                            `'${memberName}' não é definido no módulo '${aliasName}' (${aliasValue.path})`,
+                            x.loc,
+                        );
+                    }
+                    return aliasValue.env.getOwn(memberName);
+                }
+            }
+
             try {
                 return env.get(x.value);
             } catch (e) {
@@ -514,6 +548,78 @@ export function evaluate(x: Expression, env: Env): any {
                 const elapsed = performance.now() - startedAt;
                 console.log(`Elapsed time: ${elapsed.toFixed(4)} msecs`);
                 return value;
+            }
+
+            // --- MÓDULOS (R4/E1) ---
+
+            if (opName === "require") {
+                const [specExpr, ...opts] = args;
+                if (specExpr === undefined) {
+                    throw new InvalidParamError(
+                        'require requer o caminho do módulo: (require "./math.clj")',
+                    );
+                }
+
+                const spec = trampoline(evaluate(specExpr, env));
+                if (typeof spec !== "string") {
+                    throw new InvalidParamError(
+                        `require espera o caminho como string, recebeu ${prStr(spec, true)}`,
+                    );
+                }
+
+                const record = loadModule(spec, env);
+
+                if (opts.length === 0) {
+                    // Sem :as, os nomes públicos do módulo entram no env atual.
+                    for (const name of moduleExports(record)) {
+                        env.set(name, record.env.getOwn(name));
+                    }
+                    return null;
+                }
+
+                const [asKeyword, aliasSymbol, ...extra] = opts;
+                const isAs =
+                    (asKeyword instanceof ClojureKeyword &&
+                        asKeyword.value === ":as") ||
+                    asKeyword === ":as";
+
+                if (!isAs || aliasSymbol === undefined || extra.length > 0) {
+                    throw new InvalidParamError(
+                        'Forma inválida de require. Use (require "./math.clj") ou (require "./math.clj" :as math)',
+                    );
+                }
+
+                let aliasName = aliasSymbol;
+                if (aliasSymbol instanceof ClojureSymbol) {
+                    aliasName = aliasSymbol.value;
+                }
+                if (typeof aliasName !== "string") {
+                    throw new InvalidParamError(
+                        ":as requer um símbolo como alias",
+                    );
+                }
+
+                env.set(aliasName, record.namespace);
+                return null;
+            }
+
+            if (opName === "load-file") {
+                if (args.length !== 1) {
+                    throw new InvalidParamError(
+                        'load-file requer 1 argumento: (load-file "./setup.clj")',
+                    );
+                }
+
+                const spec = trampoline(evaluate(args[0]!, env));
+                if (typeof spec !== "string") {
+                    throw new InvalidParamError(
+                        `load-file espera o caminho como string, recebeu ${prStr(spec, true)}`,
+                    );
+                }
+
+                // Diferente de require: executa no env ATUAL e sempre reexecuta.
+                const absPath = resolveModulePath(spec, currentFile(env));
+                return evaluateFile(absPath, env);
             }
 
             if (opName === "quote") return args[0];

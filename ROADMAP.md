@@ -258,35 +258,35 @@ Adicionar (com testes):
 
 ## DoD
 
-- [ ] `load-file` funciona e mantém cache/isolamento conforme definido
-- [ ] Existe um mecanismo mínimo de `require`/módulos (mesmo simples)
-- [ ] CLI suporta `--eval`, `--file`, `--repl`, `--transpile`, `--out`
-- [ ] Distribuição como pacote: CLI + API
+- [x] `load-file` funciona e mantém cache/isolamento conforme definido
+- [x] Existe um mecanismo mínimo de `require`/módulos (mesmo simples)
+- [x] CLI suporta `--eval`, `--file`, `--repl`, `--transpile`, `--out`
+- [x] Distribuição como pacote: CLI + API
 
 ## Épicos
 
 ### E1. Loader e cache [DX][INT]
 
-- [ ] `load-file` (executa arquivo)
-- [ ] `require` (subset):
-    - resolução por path relativo
-    - cache (não recarrega se já carregou)
-- [ ] Definir política de ambiente:
-    - módulo tem seu próprio env?
-    - exporta symbols? (definir subset)
+- [x] `load-file` (executa arquivo, no env atual, sem cache)
+- [x] `require` (subset):
+    - [x] resolução por path relativo (a partir do arquivo que requer)
+    - [x] cache (não recarrega se já carregou)
+- [x] Definir política de ambiente: **env por módulo + alias**
+    - [x] módulo tem seu próprio env (filho da raiz)
+    - [x] exporta tudo que define; acesso via `alias/membro` ou refer-all
 
 ### E2. Namespaces mínimos (opcional) [INT][DX]
 
 Escolher um dos caminhos:
 
-- [ ] (A) Sem `ns`, apenas `require` + export explícito
-- [ ] (B) `ns` simplificado (`(ns foo.bar)`), com `in-ns`
+- [x] (A) Sem `ns`, apenas `require` + alias — **escolhido**
+- [ ] (B) `ns` simplificado (`(ns foo.bar)`), com `in-ns` — descartado
 
 ### E3. Empacotamento [DX]
 
-- [ ] Entrypoints ESM/CJS definidos
-- [ ] `bin` do CLI no `package.json`
-- [ ] `CHANGELOG.md` + semver
+- [x] Entrypoint ESM definido (com tipos); CJS fora de escopo
+- [x] `bin` do CLI no `package.json` (`mini-clj`)
+- [x] `CHANGELOG.md` + semver
 
 ---
 

@@ -16,6 +16,10 @@ const compat = new FlatCompat({
 
 export default defineConfig([
     {
+        // Saída de build e artefatos: não são código-fonte.
+        ignores: ["dist/**", "node_modules/**", "src/node_modules/**"],
+    },
+    {
         extends: compat.extends(
             "eslint:recommended",
             "plugin:@typescript-eslint/recommended",

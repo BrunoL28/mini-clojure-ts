@@ -4,6 +4,7 @@ import {
     ClojureMap,
     ClojureMacro,
     ClojureAtom,
+    ClojureNamespace,
 } from "../types/index.js";
 
 export function prStr(data: any, readably: boolean = false): string {
@@ -31,6 +32,10 @@ export function prStr(data: any, readably: boolean = false): string {
 
     if (data instanceof ClojureMacro) {
         return `#<Macro params:[${data.params}]>`;
+    }
+
+    if (data instanceof ClojureNamespace) {
+        return `#<ns ${data.name} (${data.path})>`;
     }
 
     if (data instanceof ClojureAtom) {

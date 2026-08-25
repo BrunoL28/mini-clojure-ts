@@ -1,16 +1,19 @@
 {
     "name": "mini-clojure-ts",
-    "version": "1.0.0",
-    "description": "",
-    "main": "index.js",
+    "version": "1.2.0",
+    "description": "Interpretador, REPL e transpilador de um subset de Clojure escrito em TypeScript.",
+    "main": "./dist/index.js",
     "type": "module",
     "scripts": {
         "build": "tsc",
+        "typecheck": "tsc -p tsconfig.check.json",
         "start": "tsx src/cli.ts",
         "lint": "eslint .",
         "format": "prettier --write .",
         "test": "tsx --test tests/**/*.test.ts",
-        "prepare": "husky || true"
+        "prepare": "husky || true",
+        "clean": "rm -rf dist",
+        "prepack": "pnpm build"
     },
     "lint-staged": {
         "**/*.{js,jsx,ts,tsx}": [
@@ -21,7 +24,14 @@
             "prettier -w"
         ]
     },
-    "keywords": [],
+    "keywords": [
+        "clojure",
+        "lisp",
+        "interpreter",
+        "transpiler",
+        "repl",
+        "typescript"
+    ],
     "author": "Bruno Lima Soares",
     "license": "MIT",
     "packageManager": "pnpm@10.27.0",
@@ -41,5 +51,31 @@
         "ts-node": "^10.9.2",
         "tsx": "^4.21.0",
         "typescript": "^5.9.3"
+    },
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "bin": {
+        "mini-clj": "./dist/cli.js"
+    },
+    "files": [
+        "dist",
+        "docs",
+        "README.md",
+        "ROADMAP.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
+    "engines": {
+        "node": ">=18"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/BrunoL28/mini-clojure-ts.git"
     }
 }

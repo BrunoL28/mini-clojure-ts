@@ -126,6 +126,24 @@ export class ClojureVector extends Array<any> implements ILocatable {
     }
 }
 
+/**
+ * Um módulo carregado via `require`, acessível por alias (`math/soma`).
+ *
+ * Guarda o `Env` do módulo em vez de uma cópia dos valores, então `def`
+ * posteriores dentro do módulo continuam visíveis pelo alias.
+ */
+export class ClojureNamespace {
+    constructor(
+        public name: string,
+        public path: string,
+        public env: Env,
+    ) {}
+
+    toString() {
+        return `#<ns ${this.name}>`;
+    }
+}
+
 export class ClojureAtom {
     constructor(public value: any) {}
 

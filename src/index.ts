@@ -9,6 +9,12 @@ import { transpile as transpileExpr } from "./core/Transpiler.js";
 import { type Expression } from "./types/index.js";
 import { prStr } from "./core/Printer.js";
 import { runtimeScript } from "./core/Runtime.js";
+import {
+    evaluateFile,
+    clearModuleCache,
+    CURRENT_FILE,
+} from "./core/Modules.js";
+import * as path from "path";
 
 // ----- API Types ----- //
 
@@ -78,11 +84,17 @@ export function runSource(source: string, opts: RunOptions = {}): any {
  * @return {any} O resultado da última expressão avaliada.
  */
 export function runFile(filepath: string, opts: RunOptions = {}): any {
-    if (!fs.existsSync(filepath)) {
-        throw new Error(`Arquivo não encontrado: ${filepath}`);
+    const absPath = path.resolve(process.cwd(), filepath);
+    if (!fs.existsSync(absPath)) {
+        throw new Error(`Arquivo não encontrado: ${absPath}`);
     }
-    const source = fs.readFileSync(filepath, "utf-8");
-    return runSource(source, opts);
+
+    const env = opts.env || createGlobalEnv();
+    // Deixa `*file*` disponível para que `require`/`load-file` resolvam
+    // caminhos relativos a partir deste arquivo.
+    env.set(CURRENT_FILE, absPath);
+
+    return evaluateFile(absPath, env);
 }
 
 /**
@@ -134,4 +146,4 @@ export function formatResult(result: any): string {
     return prStr(result, true);
 }
 
-export { Env, evaluate, tokenize, trampoline };
+export { Env, evaluate, tokenize, trampoline, clearModuleCache };

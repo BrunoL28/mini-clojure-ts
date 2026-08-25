@@ -1,9 +1,11 @@
+#!/usr/bin/env node
 import * as fs from "fs";
 import * as path from "path";
 import * as readline from "readline";
 import * as os from "os";
 import {
     runFile,
+    runSource,
     compileFile,
     createGlobalEnv,
     parse,
@@ -14,6 +16,7 @@ import {
     Env,
 } from "./index.js";
 import { prStr } from "./core/Printer.js";
+import { CURRENT_FILE } from "./core/Modules.js";
 
 const HISTORY_FILE = path.join(os.homedir(), ".mini-clj-history");
 
@@ -125,7 +128,7 @@ function startRepl() {
 
     let buffer = "";
 
-    console.log("\x1b[36m%s\x1b[0m", "Mini-Clojure REPL v1.2");
+    console.log("\x1b[36m%s\x1b[0m", `Mini-Clojure REPL v${readVersion()}`);
     console.log("Digite :help para ver comandos.");
     console.log("-----------------------------------------");
 
@@ -209,9 +212,11 @@ function handleFileExecution(filepath: string) {
     }
 }
 
-function handleCompilation(filepath: string) {
+function handleCompilation(filepath: string, outFileOpt: string | null) {
     try {
-        const outFile = filepath.replace(".clj", ".js");
+        const outFile = outFileOpt ?? filepath.replace(/\.clj$/, "") + ".js";
+        const outDir = path.dirname(outFile);
+        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
         compileFile(filepath, { outFile });
 
         console.log(`\x1b[32m✔ Sucesso! Compilado para: ${outFile}\x1b[0m`);
@@ -224,21 +229,151 @@ function handleCompilation(filepath: string) {
 
 // --- Entry Point ---
 
-const rawArgs = process.argv.slice(2);
-const isCompile = rawArgs.includes("-t") || rawArgs.includes("--transpile");
-const fileArgs = rawArgs.filter(
-    (arg) => arg !== "-t" && arg !== "--transpile" && !arg.startsWith("-"),
-);
-
-if (fileArgs.length > 0) {
-    const filename = fileArgs[0];
-    const filepath = path.resolve(process.cwd(), filename!);
-
-    if (isCompile) {
-        handleCompilation(filepath);
-    } else {
-        handleFileExecution(filepath);
+function readVersion(): string {
+    try {
+        const pkgUrl = new URL("../package.json", import.meta.url);
+        const pkg = JSON.parse(fs.readFileSync(pkgUrl, "utf-8"));
+        return pkg.version ?? "0.0.0";
+    } catch {
+        return "0.0.0";
     }
-} else {
-    startRepl();
 }
+
+function printHelp() {
+    console.log(`Mini-Clojure-TS v${readVersion()}
+
+Uso:
+  mini-clj                       Inicia o REPL
+  mini-clj <arquivo.clj>         Executa um arquivo
+  mini-clj -f <arquivo.clj>      Idem (explícito)
+  mini-clj -e "<código>"         Avalia o código e imprime o resultado
+  mini-clj -t <arquivo.clj>      Transpila para JavaScript
+  mini-clj --repl                Força o REPL
+
+Opções:
+  -e, --eval <código>    Avalia uma expressão e imprime o resultado
+  -f, --file <arquivo>   Executa um arquivo .clj
+  -t, --transpile        Transpila em vez de executar
+  -o, --out <arquivo>    Arquivo de saída da transpilação (padrão: <entrada>.js)
+      --repl             Inicia o REPL mesmo com outros argumentos
+  -h, --help             Mostra esta ajuda
+  -v, --version          Mostra a versão
+
+Exemplos:
+  mini-clj -e '(->> (range 10) (filter even?) (reduce + 0))'
+  mini-clj -t src/app.clj -o build/app.js`);
+}
+
+interface CliOptions {
+    evalCode: string | null;
+    file: string | null;
+    outFile: string | null;
+    transpile: boolean;
+    repl: boolean;
+    help: boolean;
+    version: boolean;
+}
+
+function parseArgs(argv: string[]): CliOptions {
+    const opts: CliOptions = {
+        evalCode: null,
+        file: null,
+        outFile: null,
+        transpile: false,
+        repl: false,
+        help: false,
+        version: false,
+    };
+
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]!;
+
+        const requireValue = (flag: string): string => {
+            const value = argv[++i];
+            if (value === undefined) {
+                throw new Error(`A opção ${flag} requer um valor.`);
+            }
+            return value;
+        };
+
+        switch (arg) {
+            case "-e":
+            case "--eval":
+                opts.evalCode = requireValue(arg);
+                break;
+            case "-f":
+            case "--file":
+                opts.file = requireValue(arg);
+                break;
+            case "-o":
+            case "--out":
+                opts.outFile = requireValue(arg);
+                break;
+            case "-t":
+            case "--transpile":
+                opts.transpile = true;
+                break;
+            case "--repl":
+                opts.repl = true;
+                break;
+            case "-h":
+            case "--help":
+                opts.help = true;
+                break;
+            case "-v":
+            case "--version":
+                opts.version = true;
+                break;
+            case "--":
+                // `pnpm start -- app.clj` repassa o `--` literalmente.
+                // Tratamos como ruído do npm/pnpm, não como opção.
+                break;
+            default:
+                if (arg.startsWith("-")) {
+                    throw new Error(
+                        `Opção desconhecida: ${arg}. Use --help para ver as opções.`,
+                    );
+                }
+                // Primeiro argumento posicional é o arquivo.
+                if (opts.file === null) opts.file = arg;
+                break;
+        }
+    }
+
+    return opts;
+}
+
+function handleEval(code: string) {
+    const env = createGlobalEnv();
+    env.set(CURRENT_FILE, path.join(process.cwd(), "--eval"));
+    try {
+        const result = runSource(code, { env });
+        console.log(formatResult(result));
+    } catch (error: any) {
+        console.error(`\x1b[31m${error.message}\x1b[0m`);
+        process.exit(1);
+    }
+}
+
+function main() {
+    let opts: CliOptions;
+    try {
+        opts = parseArgs(process.argv.slice(2));
+    } catch (error: any) {
+        console.error(`\x1b[31m${error.message}\x1b[0m`);
+        process.exit(1);
+    }
+
+    if (opts.help) return printHelp();
+    if (opts.version) return console.log(readVersion());
+
+    if (opts.repl || (!opts.file && !opts.evalCode)) return startRepl();
+
+    if (opts.evalCode !== null) return handleEval(opts.evalCode);
+
+    const filepath = path.resolve(process.cwd(), opts.file!);
+    if (opts.transpile) return handleCompilation(filepath, opts.outFile);
+    return handleFileExecution(filepath);
+}
+
+main();
