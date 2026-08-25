@@ -51,11 +51,9 @@ export function callFn(f: any, ...args: any[]): any {
     if (f instanceof ClojureKeyword) {
         const [target, notFound = null] = args;
         if (target instanceof ClojureMap) {
-            if (target.has(f)) return target.get(f);
-            for (const [k, v] of target) {
-                if (k instanceof ClojureKeyword && k.value === f.value)
-                    return v;
-            }
+            // O HAMT indexa keywords por valor, então `get` basta.
+            const value = target.get(f);
+            if (value !== undefined) return value;
         }
         return notFound;
     }

@@ -217,7 +217,7 @@ class Compiler {
 
         if (current instanceof ClojureVector) {
             const items = current.map((item) => this.macroexpandAll(item));
-            return ClojureVector.of(...items);
+            return ClojureVector.fromArray(items);
         }
 
         if (Array.isArray(current)) {

@@ -1,21 +1,61 @@
-### PR TYPE: FEATURE / NEW DEVELOPMENT
+## O que muda
 
-## 🎫 TICKET REFERENCE
+<!-- Uma ou duas frases. O "porquê" importa mais que o "o quê". -->
 
-[Link to Github Project Card]
+Closes #
 
-## 📝 Summary of Changes
+## Tipo
 
-## 🛠️ Technical Details
+- [ ] Correção de bug
+- [ ] Nova funcionalidade
+- [ ] Performance
+- [ ] Documentação
+- [ ] Refatoração / manutenção
 
-- [ ] Backend changes (e.g., New route, schema modification)
-- [ ] Frontend changes (e.g., New component, UI update)
-- [ ] DB Migrations or Infrastructure changes (if applicable)
+## Áreas tocadas
 
-## 🧪 How to Test
+- [ ] Interpretador (`src/core/Evaluator.ts`, `Environment.ts`)
+- [ ] Reader (`Tokenizer.ts`, `Parser.ts`)
+- [ ] Stdlib (`src/stdlib/`)
+- [ ] Compilador (`src/core/Compiler.ts`, `src/runtime/`)
+- [ ] CLI / REPL (`src/cli.ts`)
+- [ ] Módulos, interop ou sandbox
+- [ ] Documentação
 
-1.  Step 1
-2.  Step 2
-3.  ...
+## Paridade interpretador × compilador
 
-## 🖼️ Screenshots (if applicable)
+<!-- Só se mexeu em semântica da linguagem. -->
+
+- [ ] Não se aplica
+- [ ] Funciona igual nos dois, com caso em `compiler-parity.test.ts`
+- [ ] Diverge de propósito, e a divergência está em `docs/compiler.md`
+
+## Como testar
+
+```clojure
+;; código mínimo que exercita a mudança
+```
+
+## Checklist
+
+- [ ] `pnpm lint` sem erros
+- [ ] `pnpm typecheck` limpo
+- [ ] `pnpm test` verde
+- [ ] Testes cobrindo a mudança
+- [ ] Documentação atualizada (`docs/`, README) se o comportamento mudou
+- [ ] `CHANGELOG.md` atualizado
+- [ ] Checkboxes do `ROADMAP.md` marcados, se fecha um épico
+
+## Breaking change?
+
+- [ ] Não
+- [ ] Sim — descrito abaixo, com caminho de migração
+
+<!-- O que quebra e como migrar. -->
+
+## Performance
+
+<!-- Só se mexeu em caminho quente. Cole a saída de
+     `pnpm bench --baseline antes.json`.
+     Compare PROCESSOS separados: duas versões no mesmo processo dão
+     ~30% de viés contra a segunda. -->

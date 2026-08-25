@@ -3,6 +3,7 @@ import * as path from "path";
 import { installNodeHost } from "./core/NodeHost.js";
 import { compileProgram } from "./core/Compiler.js";
 import { evaluateFile, CURRENT_FILE } from "./core/Modules.js";
+import { startTimeLimit, clearTimeLimit } from "./core/Limits.js";
 import { createGlobalEnv, parse } from "./core/Api.js";
 import type { RunOptions, CompileOptions } from "./core/Api.js";
 import type { CompileProgramOptions } from "./core/Compiler.js";
@@ -32,7 +33,12 @@ export function runFile(filepath: string, opts: RunOptions = {}): any {
     // caminhos relativos a partir deste arquivo.
     env.set(CURRENT_FILE, absPath);
 
-    return evaluateFile(absPath, env);
+    if (opts.timeoutMs) startTimeLimit(opts.timeoutMs);
+    try {
+        return evaluateFile(absPath, env);
+    } finally {
+        if (opts.timeoutMs) clearTimeLimit();
+    }
 }
 
 /**

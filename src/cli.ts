@@ -18,6 +18,8 @@ import {
 import { prStr } from "./core/Printer.js";
 import { CURRENT_FILE } from "./core/Modules.js";
 import type { CompileTarget } from "./core/Compiler.js";
+import { setPrintLimits } from "./core/Limits.js";
+import { startTracing, stopTracing, printProfile } from "./core/Trace.js";
 
 const HISTORY_FILE = path.join(os.homedir(), ".mini-clj-history");
 
@@ -125,6 +127,11 @@ function startRepl(opts: CliOptions) {
 
     loadHistory(rl);
 
+    // O REPL é contexto de exibição: truncar por padrão evita que um
+    // `(range 1000000)` sem querer inunde o terminal. Um `--print-length`
+    // explícito continua valendo.
+    if (opts.printLength === null) setPrintLimits({ length: 100 });
+
     const replEnv = createGlobalEnv(sandboxOptions(opts));
 
     let buffer = "";
@@ -210,21 +217,55 @@ function startRepl(opts: CliOptions) {
 }
 
 function handleFileExecution(filepath: string, opts: CliOptions) {
+    const rastreando = iniciarObservabilidade(opts);
     try {
         runFile(filepath, sandboxOptions(opts));
     } catch (error: any) {
         console.error(error.message);
         process.exit(1);
+    } finally {
+        if (rastreando) {
+            printProfile();
+            stopTracing();
+        }
     }
 }
 
 /** Traduz as flags de sandbox da CLI para as opções da API. */
 function sandboxOptions(opts: CliOptions) {
-    if (!opts.sandbox) return {};
+    const base: Record<string, unknown> = {};
+    if (opts.timeoutMs > 0) base["timeoutMs"] = opts.timeoutMs;
+    if (!opts.sandbox) return base;
     return {
+        ...base,
         sandbox: true,
         sandboxOptions: opts.allow.length > 0 ? { extraAllow: opts.allow } : {},
     };
+}
+
+/**
+ * Liga tracing/profiling se alguma das flags foi pedida.
+ *
+ * @return {boolean} `true` se o tracing foi ligado.
+ */
+function iniciarObservabilidade(opts: CliOptions): boolean {
+    if (!opts.traceEval && !opts.traceMacroexpand && !opts.profile) {
+        return false;
+    }
+    startTracing({
+        evalForms: opts.traceEval,
+        macroexpand: opts.traceMacroexpand,
+        profile: opts.profile,
+        ...(opts.traceDepth !== null ? { maxDepth: opts.traceDepth } : {}),
+    });
+    return true;
+}
+
+/** Aplica o limite de impressão pedido na linha de comando. */
+function aplicarLimitesDeImpressao(opts: CliOptions) {
+    if (opts.printLength !== null) {
+        setPrintLimits({ length: opts.printLength });
+    }
 }
 
 /** Caminho legível: relativo quando ajuda, absoluto quando o relativo piora. */
@@ -347,6 +388,15 @@ Opções gerais:
       --repl             Inicia o REPL mesmo com outros argumentos
       --sandbox          Interop restrito: sem IO, sem módulos, whitelist de globais
       --allow <a,b>      Libera globais extras no sandbox (ex.: --allow Intl,URL)
+      --timeout <ms>     Interrompe a execução depois de N ms (0 = sem limite)
+      --print-length <n> Máximo de itens por coleção ao imprimir (nil = sem limite;
+                         o REPL usa 100 por padrão)
+
+Observabilidade (saída em stderr):
+      --trace-eval       Imprime cada forma avaliada
+      --trace-macroexpand  Imprime cada expansão de macro
+      --trace-depth <n>  Profundidade máxima impressa no trace
+      --profile          Conta formas e mede o tempo ao final
   -h, --help             Mostra esta ajuda
   -v, --version          Mostra a versão
 
@@ -381,6 +431,12 @@ interface CliOptions {
     watch: boolean;
     sandbox: boolean;
     allow: string[];
+    timeoutMs: number;
+    printLength: number | null;
+    traceEval: boolean;
+    traceMacroexpand: boolean;
+    profile: boolean;
+    traceDepth: number | null;
     transpile: boolean;
     repl: boolean;
     help: boolean;
@@ -408,6 +464,12 @@ function parseArgs(argv: string[]): CliOptions {
         watch: false,
         sandbox: false,
         allow: [],
+        timeoutMs: 0,
+        printLength: null,
+        traceEval: false,
+        traceMacroexpand: false,
+        profile: false,
+        traceDepth: null,
         transpile: false,
         repl: false,
         help: false,
@@ -463,6 +525,46 @@ function parseArgs(argv: string[]): CliOptions {
             case "--watch":
                 opts.watch = true;
                 break;
+            case "--timeout": {
+                const valor = Number(requireValue(arg));
+                if (!Number.isFinite(valor) || valor < 0) {
+                    throw new Error("--timeout espera milissegundos (>= 0).");
+                }
+                opts.timeoutMs = valor;
+                break;
+            }
+            case "--print-length": {
+                const bruto = requireValue(arg);
+                if (bruto === "nil" || bruto === "0") {
+                    opts.printLength = null;
+                    break;
+                }
+                const valor = Number(bruto);
+                if (!Number.isInteger(valor) || valor < 1) {
+                    throw new Error(
+                        "--print-length espera um inteiro >= 1, ou 'nil'.",
+                    );
+                }
+                opts.printLength = valor;
+                break;
+            }
+            case "--trace-eval":
+                opts.traceEval = true;
+                break;
+            case "--trace-macroexpand":
+                opts.traceMacroexpand = true;
+                break;
+            case "--profile":
+                opts.profile = true;
+                break;
+            case "--trace-depth": {
+                const valor = Number(requireValue(arg));
+                if (!Number.isInteger(valor) || valor < 0) {
+                    throw new Error("--trace-depth espera um inteiro >= 0.");
+                }
+                opts.traceDepth = valor;
+                break;
+            }
             case "--sandbox":
                 opts.sandbox = true;
                 break;
@@ -530,12 +632,18 @@ function resolveOutFile(filepath: string, opts: CliOptions): string {
 function handleEval(code: string, opts: CliOptions) {
     const env = createGlobalEnv(sandboxOptions(opts));
     env.set(CURRENT_FILE, path.join(process.cwd(), "--eval"));
+    const rastreando = iniciarObservabilidade(opts);
     try {
-        const result = runSource(code, { env });
+        const result = runSource(code, { ...sandboxOptions(opts), env });
         console.log(formatResult(result));
     } catch (error: any) {
         console.error(`\x1b[31m${error.message}\x1b[0m`);
         process.exit(1);
+    } finally {
+        if (rastreando) {
+            printProfile();
+            stopTracing();
+        }
     }
 }
 
@@ -547,6 +655,8 @@ function main() {
         console.error(`\x1b[31m${error.message}\x1b[0m`);
         process.exit(1);
     }
+
+    aplicarLimitesDeImpressao(opts);
 
     if (opts.help) return printHelp();
     if (opts.version) return console.log(readVersion());

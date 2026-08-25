@@ -1,0 +1,74 @@
+name: 🐛 Reportar bug
+description: Algo não funciona como documentado
+labels: ["bug"]
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Obrigado pelo report! Um `.clj` mínimo que reproduza vale mais
+              que qualquer descrição.
+
+    - type: textarea
+      id: reproducao
+      attributes:
+          label: Como reproduzir
+          description: O menor código que mostra o problema.
+          render: clojure
+          placeholder: |
+              (defn exemplo [x] (* x 2))
+              (exemplo "isto deveria falhar diferente")
+      validations:
+          required: true
+
+    - type: textarea
+      id: esperado
+      attributes:
+          label: O que você esperava
+      validations:
+          required: true
+
+    - type: textarea
+      id: obtido
+      attributes:
+          label: O que aconteceu
+          description: Cole a saída completa, incluindo a mensagem de erro.
+          render: shell
+      validations:
+          required: true
+
+    - type: dropdown
+      id: onde
+      attributes:
+          label: Onde acontece
+          multiple: true
+          options:
+              - Interpretador (mini-clj arquivo.clj)
+              - REPL
+              - Código compilado (mini-clj -t)
+              - API embutida
+              - Browser
+      validations:
+          required: true
+
+    - type: input
+      id: versao
+      attributes:
+          label: Versão
+          description: Saída de `mini-clj --version`
+      validations:
+          required: true
+
+    - type: input
+      id: node
+      attributes:
+          label: Node e sistema
+          placeholder: "Node 22.x, Ubuntu 24.04"
+
+    - type: checkboxes
+      id: checagens
+      attributes:
+          label: Antes de abrir
+          options:
+              - label: Procurei nas issues existentes
+                required: true
+              - label: Conferi a documentação em `docs/`

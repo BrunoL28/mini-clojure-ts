@@ -1,12 +1,13 @@
 {
     "name": "mini-clojure-ts",
-    "version": "8.0.0",
+    "version": "9.0.0",
     "description": "Interpretador, REPL e transpilador de um subset de Clojure escrito em TypeScript.",
     "main": "./dist/index.js",
     "type": "module",
     "scripts": {
         "build": "tsc && tsc -p tsconfig.cjs.json && node scripts/post-build.mjs",
         "typecheck": "tsc -p tsconfig.check.json",
+        "bench": "tsx bench/run.ts",
         "start": "tsx src/cli.ts",
         "lint": "eslint .",
         "format": "prettier --write .",

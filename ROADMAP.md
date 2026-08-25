@@ -396,36 +396,36 @@ Escolher um dos caminhos:
 
 ## DoD
 
-- [ ] Benchmarks básicos e metas definidas
-- [ ] Tracing opcional e profiler simples
-- [ ] Limites configuráveis (tempo/memória/impressão)
-- [ ] Qualidade de repo: templates, contribuição, releases consistentes
+- [x] Benchmarks básicos (`pnpm bench`) com comparação contra medição anterior
+- [x] Tracing opcional e profiler simples
+- [x] Limites configuráveis de tempo e impressão (memória fora de escopo)
+- [x] Qualidade de repo: templates, contribuição, releases consistentes
 
 ## Épicos
 
 ### E1. Performance do evaluator [INT]
 
-- [ ] Otimizar lookups de env
-- [ ] Evitar loops custosos em `get`/keyword equivalence
-- [ ] Benchmarks: macroexpand, map/reduce em coleções
+- [x] Otimizar lookups de env (objeto sem protótipo + laço)
+- [x] Laços O(n) removidos do destructuring; `into`/`conj` deixaram de ser quadráticos
+- [x] Benchmarks: macroexpand, map/reduce, TCO, destructuring, interop
 
 ### E2. Observabilidade [DX]
 
-- [ ] `--trace-eval`, `--trace-macroexpand`
-- [ ] profiler simples (tempo por forma / contagem)
+- [x] `--trace-eval`, `--trace-macroexpand`, `--trace-depth`
+- [x] `--profile`: contagem por operador e formas por segundo
 
 ### E3. Limites e robustez [SEC][DX]
 
-- [ ] limite de tempo de execução (opcional)
-- [ ] limite de impressão (ex.: `*print-length*`)
-- [ ] proteção contra loops “absurdos” (diagnóstico, não “magic stop”)
+- [x] limite de tempo de execução (`--timeout`)
+- [x] limite de impressão (`--print-length`, `set-print-length!`, `set-print-level!`)
+- [x] diagnóstico de laço infinito via `--timeout`, com mensagem explicando o motivo
 
 ### E4. Manutenção/Repo hygiene [DOC][QA]
 
-- [ ] `CONTRIBUTING.md`
-- [ ] templates de issue/PR
-- [ ] `CHANGELOG.md` (keep-a-changelog)
-- [ ] semver e notas de release
+- [x] `CONTRIBUTING.md`
+- [x] templates de issue/PR
+- [x] `CHANGELOG.md` (keep-a-changelog)
+- [x] semver, política de breaking changes e notas de release
 
 ---
 

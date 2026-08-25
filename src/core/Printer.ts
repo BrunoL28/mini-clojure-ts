@@ -6,8 +6,37 @@ import {
     ClojureAtom,
     ClojureNamespace,
 } from "../types/index.js";
+import { getPrintLimits } from "./Limits.js";
 
-export function prStr(data: any, readably: boolean = false): string {
+/**
+ * Aplica o limite de itens, acrescentando `...` quando corta.
+ *
+ * @param {string[]} itens Os itens já formatados.
+ * @param {number | null} limite O máximo de itens, ou `null`.
+ * @return {string[]} Os itens, possivelmente truncados.
+ */
+function aplicarLimite(itens: string[], limite: number | null): string[] {
+    if (limite === null || itens.length <= limite) return itens;
+    return [...itens.slice(0, limite), "..."];
+}
+
+export function prStr(
+    data: any,
+    readably: boolean = false,
+    profundidade: number = 0,
+): string {
+    const limites = getPrintLimits();
+
+    // `*print-level*` corta a **coleção** inteira, não os escalares dentro
+    // dela: com nível 2, `{:a {:b {:c 1}}}` vira `{:a {:b #}}`.
+    if (
+        limites.level !== null &&
+        profundidade >= limites.level &&
+        (Array.isArray(data) || data instanceof ClojureMap)
+    ) {
+        return "#";
+    }
+
     if (data === null) return "nil";
     if (data === undefined) return "nil";
     if (data === true) return "true";
@@ -18,16 +47,30 @@ export function prStr(data: any, readably: boolean = false): string {
     }
 
     if (data instanceof ClojureVector) {
-        const items = data.map((item) => prStr(item, readably)).join(" ");
-        return `[${items}]`;
+        const visiveis =
+            limites.length === null
+                ? (data as any[])
+                : (data.slice(0, limites.length + 1) as any[]);
+        const items = aplicarLimite(
+            visiveis.map((item) => prStr(item, readably, profundidade + 1)),
+            limites.length,
+        );
+        return `[${items.join(" ")}]`;
     }
 
     if (data instanceof ClojureMap) {
         const entries: string[] = [];
         for (const [k, v] of data) {
-            entries.push(`${prStr(k, readably)} ${prStr(v, readably)}`);
+            entries.push(
+                `${prStr(k, readably, profundidade + 1)} ${prStr(v, readably, profundidade + 1)}`,
+            );
+            // Para de formatar ao atingir o limite: numa coleção enorme, o
+            // custo está em montar as strings, não em juntá-las.
+            if (limites.length !== null && entries.length > limites.length) {
+                break;
+            }
         }
-        return `{${entries.join(" ")}}`;
+        return `{${aplicarLimite(entries, limites.length).join(" ")}}`;
     }
 
     if (data instanceof ClojureMacro) {
@@ -39,12 +82,17 @@ export function prStr(data: any, readably: boolean = false): string {
     }
 
     if (data instanceof ClojureAtom) {
-        return `#<Atom ${prStr(data.value, readably)}>`;
+        return `#<Atom ${prStr(data.value, readably, profundidade + 1)}>`;
     }
 
     if (Array.isArray(data)) {
-        const items = data.map((item) => prStr(item, readably)).join(" ");
-        return `(${items})`;
+        const visiveis =
+            limites.length === null ? data : data.slice(0, limites.length + 1);
+        const items = aplicarLimite(
+            visiveis.map((item) => prStr(item, readably, profundidade + 1)),
+            limites.length,
+        );
+        return `(${items.join(" ")})`;
     }
 
     if (typeof data === "string") {

@@ -35,6 +35,7 @@
 - [Compilador](#compilador)
 - [Interop e Sandbox](#interop-e-sandbox)
 - [No Browser](#no-browser)
+- [Desempenho e Limites](#desempenho-e-limites)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -396,6 +397,12 @@ mini-clj --help                       # todas as opções
 | `-f`, `--file <arq>`    | Executa um arquivo `.clj`                        |
 | `--sandbox`             | Interop restrito: sem IO, sem módulos, whitelist |
 | `--allow <a,b>`         | Libera globais extras no sandbox                 |
+| `--timeout <ms>`        | Interrompe a execução depois de N ms             |
+| `--print-length <n>`    | Máximo de itens por coleção ao imprimir          |
+| `--trace-eval`          | Imprime cada forma avaliada (stderr)             |
+| `--trace-macroexpand`   | Imprime cada expansão de macro (stderr)          |
+| `--trace-depth <n>`     | Profundidade máxima impressa no trace            |
+| `--profile`             | Conta formas e mede o tempo ao final             |
 | `--repl`                | Força o REPL                                     |
 | `-h`, `--help`          | Ajuda                                            |
 | `-v`, `--version`       | Versão                                           |
@@ -624,6 +631,52 @@ import { runSource } from "mini-clojure-ts/browser";
 
 ---
 
+## Desempenho e Limites
+
+Guia completo em **[docs/performance.md](docs/performance.md)**.
+
+```sh
+pnpm bench                        # benchmarks do interpretador
+pnpm bench --save antes.json      # grava para comparar depois
+pnpm bench --baseline antes.json  # compara com a medição anterior
+```
+
+Para não travar em código com bug ou hostil:
+
+```sh
+mini-clj --timeout 5000 app.clj        # interrompe com erro explicando o motivo
+mini-clj --print-length 20 app.clj     # trunca coleções ao imprimir
+```
+
+```clojure
+(set-print-length! 10)    ; itens por coleção; nil = sem limite
+(set-print-level! 3)      ; profundidade de aninhamento
+```
+
+Para entender o que o avaliador está fazendo (tudo em stderr):
+
+```sh
+mini-clj --trace-eval --trace-depth 3 app.clj
+mini-clj --trace-macroexpand app.clj
+mini-clj --profile app.clj
+```
+
+```
+— perfil —
+formas avaliadas: 37.625
+tempo total:      33.69 ms
+formas por segundo: 1.116.674
+
+mais avaliadas:
+  fib                       8.361   22.2%
+  if                        8.361   22.2%
+```
+
+> **Não há limite de memória.** Um programa que aloca sem parar continua capaz
+> de derrubar o processo — `--timeout` só interrompe quem está avaliando formas.
+
+---
+
 ### API Pública (Embed)
 
 O Mini-Clojure-TS pode ser usado como uma biblioteca em outros projetos TypeScript/JavaScript.
@@ -659,6 +712,7 @@ console.log(ast);
 - [x] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time
 - [x] **v7.1:** Output e Targets (`esm`/`cjs`/`iife`), Source Maps, Watch Mode
 - [x] **v8.0:** Sandbox/Whitelist, Política de Interop, Build para Browser
+- [x] **v9.0:** Performance do Evaluator, Observabilidade, Limites, Higiene do Repo
 
 ---
 

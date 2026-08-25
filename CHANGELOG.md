@@ -7,6 +7,72 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [9.0.0] — 2026-08-25
+
+Release **R7 — Performance, observabilidade e manutenção**, que fecha o
+roadmap original.
+
+### Corrigido
+
+- **`Env` vazava `Object.prototype`** ([#28]). O escopo era um `{}`, e
+  `"constructor" in vars` é verdadeiro pelo protótipo: símbolos indefinidos
+  como `constructor`, `toString` ou `valueOf` resolviam para membros de
+  `Object.prototype` em vez de dar "símbolo não encontrado". Agora o escopo é
+  um objeto sem protótipo.
+- **`into` e `conj` eram quadráticos em vetores** ([#28]). Cada item recriava
+  o vetor inteiro: `(into [] (range 32000))` levava **39 s**, hoje leva 0,5 s.
+  Acima de ~130 mil elementos o espalhamento de argumentos estourava o limite
+  do JavaScript e o processo travava.
+
+### Adicionado
+
+- **Benchmarks** ([#28]) em `bench/run.ts`, com `pnpm bench`. Calibra a
+  duração das amostras, reporta o melhor de nove e sabe comparar com uma
+  medição anterior (`--save` / `--baseline`).
+- **Limite de tempo** ([#30]): `--timeout <ms>` na CLI, `timeoutMs` na API.
+  Interrompe com mensagem que diz o motivo provável e como ajustar.
+- **Limites de impressão** ([#30]): `--print-length`, `set-print-length!`,
+  `set-print-level!` e `print-limits`. `*print-level*` corta a coleção
+  inteira, como em Clojure. Sem limite por padrão, para `pr-str` continuar
+  fazendo roundtrip; o REPL usa 100 por ser contexto de exibição.
+- **Tracing e profiling** ([#29]): `--trace-eval`, `--trace-macroexpand`,
+  `--trace-depth` e `--profile`. Tudo em stderr.
+- **Higiene do repositório** ([#31]): `CONTRIBUTING.md` reescrito para o fluxo
+  real do projeto, templates de issue (bug e funcionalidade) e de PR, e
+  política explícita de versionamento e breaking changes.
+- Documentação em [`docs/performance.md`](docs/performance.md).
+
+### Modificado
+
+- **Despacho de formas especiais por `Set`** ([#28]): toda chamada de função
+  percorria ~25 comparações de string antes de chegar ao caminho de aplicação.
+- **Laços O(n) removidos do destructuring** ([#28]): as buscas por chave
+  varriam o mapa quando a chave faltava, embora o HAMT já indexe keywords e
+  símbolos por valor.
+- `ClojureVector.fromArray()` substitui `of(...array)` nos caminhos onde o
+  array pode ser grande.
+
+### Desempenho
+
+Medido contra a `8.0.0`, em processos separados e alternando a ordem:
+
+| Caso                           | Ganho     |
+| ------------------------------ | --------- |
+| `into` de 1k elementos         | **+477×** |
+| `map` + `filter` + `reduce`    | +23%      |
+| destructuring de vetor com `&` | +18%      |
+| `assoc`/`get` encadeados       | +11%      |
+| chamada de função de usuário   | +9%       |
+| lookup em escopo profundo      | +8%       |
+
+> **Nota de método:** comparar duas versões carregadas no **mesmo processo** é
+> inválido — a segunda cópia sai ~30% mais lenta mesmo sendo idêntica, porque
+> encontra os call sites do V8 já polimórficos. Um experimento de controle
+> (versão antiga contra uma cópia dela mesma) acusou "-30% de regressão". As
+> medições acima usam processos separados.
+
+Os ganchos de observabilidade custam ~2-4% mesmo desligados.
+
 ## [8.0.0] — 2026-08-25
 
 Release **R6 — Segurança, sandbox e interop**.
@@ -251,7 +317,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.0.0...HEAD
+[9.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...v8.0.0
 [7.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...v7.0.0
@@ -281,4 +348,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#25]: https://github.com/BrunoL28/mini-clojure-ts/issues/25
 [#26]: https://github.com/BrunoL28/mini-clojure-ts/issues/26
 [#27]: https://github.com/BrunoL28/mini-clojure-ts/issues/27
+[#28]: https://github.com/BrunoL28/mini-clojure-ts/issues/28
+[#29]: https://github.com/BrunoL28/mini-clojure-ts/issues/29
+[#30]: https://github.com/BrunoL28/mini-clojure-ts/issues/30
+[#31]: https://github.com/BrunoL28/mini-clojure-ts/issues/31
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

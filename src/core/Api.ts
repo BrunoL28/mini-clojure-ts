@@ -20,11 +20,19 @@ import {
 } from "./Interop.js";
 import type { InteropPolicy, SandboxOptions } from "./Interop.js";
 import { ClojureError } from "../errors/ClojureError.js";
+import {
+    startTimeLimit,
+    clearTimeLimit,
+    setPrintLimits,
+    getPrintLimits,
+} from "./Limits.js";
 
 // ----- API Types ----- //
 
 export interface RunOptions extends GlobalEnvOptions {
     env?: Env;
+    /** Interrompe a execução depois de N ms. `0` ou ausente = sem limite. */
+    timeoutMs?: number;
 }
 
 export interface GlobalEnvOptions {
@@ -113,8 +121,13 @@ export function runSource(source: string, opts: RunOptions = {}): any {
     const expressions = parse(source);
     let lastResult = null;
 
-    for (const expr of expressions) {
-        lastResult = trampoline(evaluate(expr, env));
+    if (opts.timeoutMs) startTimeLimit(opts.timeoutMs);
+    try {
+        for (const expr of expressions) {
+            lastResult = trampoline(evaluate(expr, env));
+        }
+    } finally {
+        if (opts.timeoutMs) clearTimeLimit();
     }
 
     return lastResult;
@@ -156,4 +169,8 @@ export {
     DEFAULT_ALLOWED_GLOBALS,
     DEFAULT_RUNTIME_IMPORT,
     CURRENT_FILE,
+    setPrintLimits,
+    getPrintLimits,
+    startTimeLimit,
+    clearTimeLimit,
 };

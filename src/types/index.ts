@@ -116,8 +116,22 @@ export class ClojureVector extends Array<any> implements ILocatable {
      * @return {ClojureVector} O vetor construído.
      */
     static override of(...items: any[]): ClojureVector {
+        return ClojureVector.fromArray(items);
+    }
+
+    /**
+     * Cria um vetor a partir de um array já existente.
+     *
+     * Prefira isto a `of(...array)` em qualquer caminho onde o array possa ser
+     * grande: espalhar um array de centenas de milhares de itens como
+     * argumentos estoura o limite de argumentos do JavaScript.
+     *
+     * @param {any[]} items Os itens do vetor.
+     * @return {ClojureVector} O vetor construído.
+     */
+    static fromArray(items: any[]): ClojureVector {
         const vector = new ClojureVector();
-        for (const item of items) vector.push(item);
+        for (let i = 0; i < items.length; i++) vector.push(items[i]);
         return vector;
     }
 

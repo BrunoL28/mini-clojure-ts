@@ -14,6 +14,7 @@ import { parse } from "../core/Parser.js";
 import { tokenize } from "../core/Tokenizer.js";
 import { callFn, isCallable, truthy } from "../core/Invoke.js";
 import { getHost } from "../core/Host.js";
+import { setPrintLimits, getPrintLimits } from "../core/Limits.js";
 import {
     OPEN_POLICY,
     accessMember,
@@ -60,7 +61,7 @@ function toSeq(x: any): any[] | null {
     if (Array.isArray(x)) return x;
     if (typeof x === "string") return x.split("");
     if (x instanceof ClojureMap) {
-        return x.entries().map(([k, v]) => ClojureVector.of(k, v));
+        return x.entries().map(([k, v]) => ClojureVector.fromArray([k, v]));
     }
     return null;
 }
@@ -89,7 +90,11 @@ function seqOrThrow(x: any, operation: string): any[] {
 /** Adiciona um item preservando o tipo da coleção (vetor no fim, lista no início). */
 function conjOne(coll: any, item: any): any {
     if (coll === null || coll === undefined) return [item];
-    if (coll instanceof ClojureVector) return ClojureVector.of(...coll, item);
+    if (coll instanceof ClojureVector) {
+        const copia = coll.slice() as any[];
+        copia.push(item);
+        return ClojureVector.fromArray(copia);
+    }
     if (coll instanceof ClojureMap) {
         const pair = toSeq(item);
         if (!pair || pair.length !== 2) {
@@ -107,6 +112,42 @@ function conjOne(coll: any, item: any): any {
 
 /** Sentinela interna para distinguir "chave ausente" de um `nil` armazenado. */
 const MISSING = Symbol("missing");
+
+/**
+ * Adiciona vários itens de uma vez, preservando a semântica de `conj`.
+ *
+ * Existe porque `items.reduce(conjOne, coll)` era **quadrático** em vetores:
+ * cada item recriava o vetor inteiro. `(into [] (range 32000))` levava 39 s.
+ *
+ * @param {any} coll A coleção destino.
+ * @param {any[]} items Os itens a adicionar.
+ * @return {any} A nova coleção.
+ */
+function addAll(coll: any, items: any[]): any {
+    if (items.length === 0) return coll;
+
+    if (coll instanceof ClojureVector) {
+        const saida = coll.slice() as any[];
+        for (let i = 0; i < items.length; i++) saida.push(items[i]);
+        return ClojureVector.fromArray(saida);
+    }
+
+    if (coll instanceof ClojureMap) {
+        let mapa = coll;
+        for (const item of items) mapa = conjOne(mapa, item);
+        return mapa;
+    }
+
+    if (coll === null || coll === undefined || isList(coll)) {
+        // `conj` numa lista insere no início, então a ordem final é invertida.
+        const base = coll === null || coll === undefined ? [] : coll;
+        const saida = items.slice().reverse();
+        for (let i = 0; i < base.length; i++) saida.push(base[i]);
+        return saida;
+    }
+
+    return items.reduce((acc, item) => conjOne(acc, item), coll);
+}
 
 function getIn(coll: any, path: any[], notFound: any): any {
     let current: any = coll;
@@ -146,7 +187,9 @@ function assocOne(coll: any, key: any, val: any): any {
         }
         const copy = coll.slice();
         copy[key] = val;
-        return coll instanceof ClojureVector ? ClojureVector.of(...copy) : copy;
+        return coll instanceof ClojureVector
+            ? ClojureVector.fromArray(copy)
+            : copy;
     }
     throw new InvalidParamError(
         `assoc requer um mapa ou vetor, recebeu ${prStr(coll)}`,
@@ -373,6 +416,36 @@ export const initialConfig: { [key: string]: any } = {
         return null;
     },
 
+    // (set-print-length! n) — n itens por coleção, ou nil para sem limite
+    "set-print-length!": (n: any) => {
+        if (n !== null && (typeof n !== "number" || n < 0)) {
+            throw new InvalidParamError(
+                "set-print-length! espera um número não negativo ou nil",
+            );
+        }
+        setPrintLimits({ length: n });
+        return n;
+    },
+
+    // (set-print-level! n) — profundidade de aninhamento, ou nil
+    "set-print-level!": (n: any) => {
+        if (n !== null && (typeof n !== "number" || n < 0)) {
+            throw new InvalidParamError(
+                "set-print-level! espera um número não negativo ou nil",
+            );
+        }
+        setPrintLimits({ level: n });
+        return n;
+    },
+
+    // (print-limits) -> {:length n :level n}
+    "print-limits": () => {
+        const limites = getPrintLimits();
+        return new ClojureMap()
+            .assoc(new ClojureKeyword(":length"), limites.length)
+            .assoc(new ClojureKeyword(":level"), limites.level);
+    },
+
     // (slurp path) — Node-only
     slurp: (path: any) => {
         if (typeof path !== "string") {
@@ -419,7 +492,7 @@ export const initialConfig: { [key: string]: any } = {
     // ==========================================
 
     list: (...args: any[]) => args,
-    vector: (...args: any[]) => ClojureVector.of(...args),
+    vector: (...args: any[]) => ClojureVector.fromArray(args),
     first: (coll: any) => {
         const s = toSeq(coll);
         return s && s.length > 0 ? s[0] : null;
@@ -458,9 +531,7 @@ export const initialConfig: { [key: string]: any } = {
         const s = toSeq(coll);
         return s === null ? [item] : [item, ...s];
     },
-    conj: (coll: any, ...items: any[]) => {
-        return items.reduce((acc, item) => conjOne(acc, item), coll);
-    },
+    conj: (coll: any, ...items: any[]) => addAll(coll, items),
     concat: (...colls: any[]) => {
         const out: any[] = [];
         for (const c of colls) {
@@ -638,8 +709,7 @@ export const initialConfig: { [key: string]: any } = {
     // (into to from) — preserva o tipo de `to`
     into: (to: any, from: any) => {
         if (from === null || from === undefined) return to;
-        const items = seqOrThrow(from, "into");
-        return items.reduce((acc, item) => conjOne(acc, item), to);
+        return addAll(to, seqOrThrow(from, "into"));
     },
 
     // ==========================================

@@ -63,7 +63,7 @@ export function sym(name: string): ClojureSymbol {
  * @return {ClojureVector} O vetor.
  */
 export function vec(items: any[]): ClojureVector {
-    return ClojureVector.of(...items);
+    return ClojureVector.fromArray(items);
 }
 
 /**
@@ -126,8 +126,8 @@ export function nth_(coll: any, index: number): any {
  * @return {ClojureVector} Os elementos restantes.
  */
 export function restFrom(coll: any, index: number): ClojureVector {
-    if (!Array.isArray(coll)) return ClojureVector.of();
-    return ClojureVector.of(...coll.slice(index));
+    if (!Array.isArray(coll)) return ClojureVector.fromArray([]);
+    return ClojureVector.fromArray(coll.slice(index));
 }
 
 /**

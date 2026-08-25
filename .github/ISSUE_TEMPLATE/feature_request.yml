@@ -1,0 +1,64 @@
+name: ✨ Propor funcionalidade
+description: Sugerir uma forma, função de stdlib ou melhoria de ferramenta
+labels: ["enhancement"]
+body:
+    - type: textarea
+      id: problema
+      attributes:
+          label: Que problema isso resolve
+          description: Descreva o incômodo concreto, não a solução.
+      validations:
+          required: true
+
+    - type: textarea
+      id: proposta
+      attributes:
+          label: Como seria
+          render: clojure
+          placeholder: |
+              (take-while pos? [3 2 1 -1 2])  ;=> (3 2 1)
+      validations:
+          required: true
+
+    - type: dropdown
+      id: area
+      attributes:
+          label: Área
+          options:
+              - Stdlib
+              - Forma especial / semântica da linguagem
+              - Compilador
+              - CLI / REPL
+              - Módulos, interop ou sandbox
+              - Documentação
+              - Outra
+      validations:
+          required: true
+
+    - type: dropdown
+      id: paridade
+      attributes:
+          label: Precisa funcionar no código compilado?
+          options:
+              - "Sim, com paridade total"
+              - "Não, só interpretado (divergência documentada)"
+              - "Não se aplica"
+      validations:
+          required: true
+
+    - type: textarea
+      id: alternativas
+      attributes:
+          label: Alternativas consideradas
+          description: Dá para resolver com o que já existe hoje?
+
+    - type: checkboxes
+      id: escopo
+      attributes:
+          label: Escopo
+          description: >
+              O ROADMAP.md lista não-objetivos — compatibilidade total com
+              Clojure, concurrency avançada, macros 100% higiênicas.
+          options:
+              - label: Conferi que isto não está nos não-objetivos do roadmap
+                required: true

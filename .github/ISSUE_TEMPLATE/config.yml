@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+    - name: 💬 Dúvidas e ideias
+      url: https://github.com/BrunoL28/mini-clojure-ts/discussions
+      about: Para perguntas de uso e conversas abertas, prefira as Discussions.
+    - name: 📚 Documentação
+      url: https://github.com/BrunoL28/mini-clojure-ts/tree/master/docs
+      about: Stdlib, módulos, compilador, interop e browser.
