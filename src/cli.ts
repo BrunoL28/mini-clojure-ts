@@ -17,6 +17,7 @@ import {
 } from "./index.js";
 import { prStr } from "./core/Printer.js";
 import { CURRENT_FILE } from "./core/Modules.js";
+import type { CompileTarget } from "./core/Compiler.js";
 
 const HISTORY_FILE = path.join(os.homedir(), ".mini-clj-history");
 
@@ -212,19 +213,97 @@ function handleFileExecution(filepath: string) {
     }
 }
 
-function handleCompilation(filepath: string, outFileOpt: string | null) {
-    try {
-        const outFile = outFileOpt ?? filepath.replace(/\.clj$/, "") + ".js";
-        const outDir = path.dirname(outFile);
-        if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
-        compileFile(filepath, { outFile });
+/** Caminho legível: relativo quando ajuda, absoluto quando o relativo piora. */
+function displayPath(target: string): string {
+    const rel = path.relative(process.cwd(), target);
+    return rel.startsWith("..") ? target : rel;
+}
 
-        console.log(`\x1b[32m✔ Sucesso! Compilado para: ${outFile}\x1b[0m`);
-        console.log(`Execute com: node ${outFile}`);
+/**
+ * Compila uma vez. Devolve `true` em caso de sucesso — o watch usa isso para
+ * decidir a mensagem, sem derrubar o processo em caso de erro.
+ */
+function compileOnce(
+    filepath: string,
+    opts: CliOptions,
+    quiet = false,
+): boolean {
+    const outFile = resolveOutFile(filepath, opts);
+
+    try {
+        compileFile(filepath, {
+            outFile,
+            target: opts.target,
+            sourceMap: opts.sourceMap,
+            ...(opts.runtimeGlobal
+                ? { runtimeGlobal: opts.runtimeGlobal }
+                : {}),
+        });
+
+        const rel = displayPath(outFile);
+        if (quiet) {
+            console.log(
+                `\x1b[32m✔\x1b[0m ${new Date().toLocaleTimeString()} — ${rel}`,
+            );
+        } else {
+            console.log(`\x1b[32m✔ Sucesso! Compilado para: ${rel}\x1b[0m`);
+            if (opts.sourceMap) console.log(`  Source map: ${rel}.map`);
+            if (opts.target === "iife") {
+                const globalName = opts.runtimeGlobal ?? "MiniClojureRuntime";
+                console.log(
+                    `  O bundle iife espera o runtime em globalThis.${globalName}`,
+                );
+            } else {
+                console.log(`Execute com: node ${rel}`);
+            }
+        }
+        return true;
     } catch (error: any) {
-        console.error("\x1b[31mErro de Compilação:\x1b[0m", error.message);
-        process.exit(1);
+        if (quiet) {
+            console.error(
+                `\x1b[31m✘\x1b[0m ${new Date().toLocaleTimeString()} — ${error.message}`,
+            );
+        } else {
+            console.error("\x1b[31mErro de Compilação:\x1b[0m", error.message);
+        }
+        return false;
     }
+}
+
+function handleCompilation(filepath: string, opts: CliOptions) {
+    if (!compileOnce(filepath, opts)) process.exit(1);
+}
+
+/**
+ * Recompila a cada mudança no arquivo.
+ *
+ * Observa o **diretório** em vez do arquivo: editores costumam salvar criando
+ * um temporário e renomeando, o que faz um watch preso ao inode parar de
+ * receber eventos. Um erro de compilação nunca derruba o watch.
+ */
+function handleWatch(filepath: string, opts: CliOptions) {
+    const dir = path.dirname(filepath);
+    const target = path.basename(filepath);
+
+    console.log(
+        `\x1b[36mObservando ${displayPath(filepath)}... (Ctrl+C para sair)\x1b[0m`,
+    );
+
+    // O watch é registrado ANTES da compilação inicial: no sentido contrário,
+    // uma edição feita durante essa primeira compilação passaria despercebida.
+    let timer: NodeJS.Timeout | null = null;
+    fs.watch(dir, (_event, filename) => {
+        if (filename !== target) return;
+        // Debounce: um único save costuma disparar vários eventos.
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+            timer = null;
+            if (!fs.existsSync(filepath)) return;
+            compileOnce(filepath, opts, true);
+        }, 100);
+    });
+
+    compileOnce(filepath, opts, true);
 }
 
 // --- Entry Point ---
@@ -245,40 +324,70 @@ function printHelp() {
 Uso:
   mini-clj                       Inicia o REPL
   mini-clj <arquivo.clj>         Executa um arquivo
-  mini-clj -f <arquivo.clj>      Idem (explícito)
   mini-clj -e "<código>"         Avalia o código e imprime o resultado
-  mini-clj -t <arquivo.clj>      Transpila para JavaScript
-  mini-clj --repl                Força o REPL
+  mini-clj -t <arquivo.clj>      Compila para JavaScript
 
-Opções:
+Opções gerais:
   -e, --eval <código>    Avalia uma expressão e imprime o resultado
   -f, --file <arquivo>   Executa um arquivo .clj
-  -t, --transpile        Transpila em vez de executar
-  -o, --out <arquivo>    Arquivo de saída da transpilação (padrão: <entrada>.js)
       --repl             Inicia o REPL mesmo com outros argumentos
   -h, --help             Mostra esta ajuda
   -v, --version          Mostra a versão
 
+Compilação (com -t):
+  -t, --transpile        Compila em vez de executar
+      --target <alvo>    esm (padrão) | cjs | iife
+  -o, --out-file <arq>   Arquivo de saída
+      --out-dir <dir>    Diretório de saída (nome derivado da entrada)
+      --runtime-global <n> Global de onde o iife lê o runtime
+                         (padrão: MiniClojureRuntime)
+  -s, --source-map       Gera o .map e linka no arquivo compilado
+  -w, --watch            Recompila a cada mudança no arquivo
+
+Extensão padrão da saída: esm -> .mjs, cjs -> .cjs, iife -> .js
+O target iife lê o runtime de globalThis.MiniClojureRuntime; esm e cjs o
+importam de "mini-clojure-ts/runtime".
+
 Exemplos:
   mini-clj -e '(->> (range 10) (filter even?) (reduce + 0))'
-  mini-clj -t src/app.clj -o build/app.js`);
+  mini-clj -t src/app.clj --out-dir build --source-map
+  mini-clj -t src/app.clj --target cjs -w`);
 }
 
 interface CliOptions {
     evalCode: string | null;
     file: string | null;
     outFile: string | null;
+    outDir: string | null;
+    target: CompileTarget;
+    runtimeGlobal: string | null;
+    sourceMap: boolean;
+    watch: boolean;
     transpile: boolean;
     repl: boolean;
     help: boolean;
     version: boolean;
 }
 
+const TARGETS: CompileTarget[] = ["esm", "cjs", "iife"];
+
+/** Extensão padrão por target, para o arquivo de saída não ficar ambíguo. */
+const TARGET_EXTENSION: Record<CompileTarget, string> = {
+    esm: ".mjs",
+    cjs: ".cjs",
+    iife: ".js",
+};
+
 function parseArgs(argv: string[]): CliOptions {
     const opts: CliOptions = {
         evalCode: null,
         file: null,
         outFile: null,
+        outDir: null,
+        target: "esm",
+        runtimeGlobal: null,
+        sourceMap: false,
+        watch: false,
         transpile: false,
         repl: false,
         help: false,
@@ -307,7 +416,32 @@ function parseArgs(argv: string[]): CliOptions {
                 break;
             case "-o":
             case "--out":
+            case "--out-file":
                 opts.outFile = requireValue(arg);
+                break;
+            case "--out-dir":
+                opts.outDir = requireValue(arg);
+                break;
+            case "--target": {
+                const value = requireValue(arg) as CompileTarget;
+                if (!TARGETS.includes(value)) {
+                    throw new Error(
+                        `Target inválido: ${value}. Use ${TARGETS.join(", ")}.`,
+                    );
+                }
+                opts.target = value;
+                break;
+            }
+            case "--runtime-global":
+                opts.runtimeGlobal = requireValue(arg);
+                break;
+            case "-s":
+            case "--source-map":
+                opts.sourceMap = true;
+                break;
+            case "-w":
+            case "--watch":
+                opts.watch = true;
                 break;
             case "-t":
             case "--transpile":
@@ -340,7 +474,26 @@ function parseArgs(argv: string[]): CliOptions {
         }
     }
 
+    if (opts.outFile && opts.outDir) {
+        throw new Error("Use --out-file OU --out-dir, não os dois.");
+    }
+
     return opts;
+}
+
+/** Decide o caminho de saída a partir das opções e do target. */
+function resolveOutFile(filepath: string, opts: CliOptions): string {
+    if (opts.outFile) return path.resolve(process.cwd(), opts.outFile);
+
+    const base =
+        path.basename(filepath, path.extname(filepath)) +
+        TARGET_EXTENSION[opts.target];
+
+    const dir = opts.outDir
+        ? path.resolve(process.cwd(), opts.outDir)
+        : path.dirname(filepath);
+
+    return path.join(dir, base);
 }
 
 function handleEval(code: string) {
@@ -372,7 +525,10 @@ function main() {
     if (opts.evalCode !== null) return handleEval(opts.evalCode);
 
     const filepath = path.resolve(process.cwd(), opts.file!);
-    if (opts.transpile) return handleCompilation(filepath, opts.outFile);
+    if (opts.transpile) {
+        if (opts.watch) return handleWatch(filepath, opts);
+        return handleCompilation(filepath, opts);
+    }
     return handleFileExecution(filepath);
 }
 

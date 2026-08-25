@@ -302,8 +302,8 @@ Escolher um dos caminhos:
 
 - [x] Pipeline: parse → macroexpand → desugar → codegen
 - [x] Compila `let`, mapas, keywords, try/catch, atoms (subset definido)
-- [ ] Output com targets (`cjs`/`esm`/`iife`) e sem `globalThis` por padrão
-- [ ] Source maps funcionando para stack traces no Node
+- [x] Output com targets (`cjs`/`esm`/`iife`) e sem `globalThis` por padrão
+- [x] Source maps funcionando para stack traces no Node
 - [x] Testes de equivalência (interpretado vs compilado) em um conjunto de programas
 
 ## Épicos
@@ -332,20 +332,20 @@ Escolher um dos caminhos:
 
 ### E4. Output e targets [COMP][DX]
 
-- [ ] `--target esm|cjs|iife`
-- [ ] `--out-file` / `--out-dir`
-- [ ] Evitar `globalThis` por padrão (somente em `iife` ou opção explícita)
+- [x] `--target esm|cjs|iife`
+- [x] `--out-file` / `--out-dir`
+- [x] `globalThis` somente no `iife`
 
 ### E5. Source maps [COMP]
 
-- [ ] Mapear nós do AST com loc → posições no JS
-- [ ] Gerar `.map` e linkar no output
-- [ ] Teste: erro em runtime do JS aponta linha do `.clj` (quando possível)
+- [x] Mapear formas de nível superior com loc → linhas no JS
+- [x] Gerar `.map` (v3, com sourcesContent) e linkar no output
+- [x] Teste: erro em runtime do JS aponta linha do `.clj`
 
 ### E6. Watch mode [DX]
 
-- [ ] `--watch` recompila em mudança
-- [ ] Mensagens claras de erro/diagnóstico
+- [x] `--watch` recompila em mudança (debounce de 100 ms)
+- [x] Mensagens claras de erro/diagnóstico; erro não derruba o watch
 
 ---
 

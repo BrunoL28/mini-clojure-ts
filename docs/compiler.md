@@ -153,13 +153,100 @@ idêntica. Qualquer divergência quebra o CI.
 
 ---
 
+## Targets ([#22])
+
+`--target` decide o formato do módulo. **`globalThis` só aparece no `iife`** —
+é de lá que o runtime vem, já que um script de browser não faz `import`.
+
+| Target | Como recebe o runtime                             | Extensão padrão |
+| ------ | ------------------------------------------------- | --------------- |
+| `esm`  | `import * as $rt from "mini-clojure-ts/runtime"`  | `.mjs`          |
+| `cjs`  | `const $rt = require("mini-clojure-ts/runtime")`  | `.cjs`          |
+| `iife` | `globalThis["MiniClojureRuntime"]`, por parâmetro | `.js`           |
+
+As extensões são explícitas de propósito: num pacote com `"type": "module"` um
+`.js` é ESM, e num sem, é CommonJS. `.mjs`/`.cjs` não dependem disso. Um
+`--out-file` explícito é sempre respeitado como veio.
+
+O pacote publica o runtime nos dois formatos (`dist/runtime` em ESM e
+`dist/cjs/runtime` em CommonJS), então `require` e `import` funcionam de
+verdade — não só na teoria.
+
+```sh
+mini-clj -t app.clj                            # app.mjs
+mini-clj -t app.clj --target cjs               # app.cjs
+mini-clj -t app.clj --out-dir build            # build/app.mjs
+mini-clj -t app.clj --target iife -o web/app.js
+```
+
+Para o `iife`, o runtime precisa estar no global antes do script rodar:
+
+```html
+<script src="runtime.global.js"></script>
+<!-- define MiniClojureRuntime -->
+<script src="app.js"></script>
+```
+
+Use `--runtime-global` se preferir outro nome (via API: `runtimeGlobal`).
+
+---
+
+## Source maps ([#23])
+
+`--source-map` gera o `.map` ao lado do arquivo e adiciona o
+`//# sourceMappingURL=` no fim:
+
+```sh
+mini-clj -t app.clj --source-map
+node --enable-source-maps app.mjs
+```
+
+Um erro em runtime passa a apontar o `.clj`:
+
+```
+InvalidParamError: nth: índice 99 fora dos limites (tamanho 2)
+    at <anonymous> (/caminho/erro.clj:4:1)
+```
+
+O mapa é v3, com `sourcesContent` embutido — é autocontido, não precisa do
+`.clj` por perto para funcionar num navegador ou ferramenta.
+
+> **Granularidade:** o codegen emite **uma linha de JavaScript por forma de
+> nível superior**, então o mapeamento é nessa granularidade. Um erro aponta a
+> forma de nível superior que o originou, não a subexpressão exata. É o que a
+> #23 admite ("ou pelo menos mapeia para forma próxima") e o suficiente para
+> localizar o problema no fonte.
+
+---
+
+## Modo watch ([#24])
+
+```sh
+mini-clj -t app.clj -w
+```
+
+```
+Observando app.clj... (Ctrl+C para sair)
+✔ 13:26:16 — app.mjs
+✔ 13:26:19 — app.mjs
+✘ 13:26:20 — Lista desbalanceada: falta ')' em 5:17
+✔ 13:26:22 — app.mjs
+```
+
+- **Erro de compilação não derruba o watch** — ele reporta e segue observando.
+- Debounce de 100 ms, porque um único save costuma disparar vários eventos.
+- Observa o **diretório**, não o arquivo: editores salvam criando um
+  temporário e renomeando, o que faria um watch preso ao inode parar de
+  receber eventos.
+- Não segue dependências: como `require` não é suportado no compilado, não há
+  grafo de módulos para observar.
+
+---
+
 ## Ainda não implementado
 
-Estes itens são o restante do R5:
-
-- **[#22]** targets `esm` / `cjs` / `iife` (hoje só ESM) e `--out-dir`
-- **[#23]** source maps
-- **[#24]** modo `--watch`
+- Mapeamento em nível de subexpressão nos source maps
+- `require`/`load-file` no código compilado
 
 [#19]: https://github.com/BrunoL28/mini-clojure-ts/issues/19
 [#20]: https://github.com/BrunoL28/mini-clojure-ts/issues/20

@@ -11,6 +11,8 @@ import { trampoline } from "./Trampoline.js";
 import { initialConfig } from "../stdlib/index.js";
 import { ClojureError } from "../errors/ClojureError.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
+import { buildSourceMap } from "./SourceMap.js";
+import type { Mapping } from "./SourceMap.js";
 
 /** Identificador do namespace do runtime dentro do código gerado. */
 const RT = "$rt";
@@ -18,15 +20,43 @@ const RT = "$rt";
 /** Especificador de import padrão do runtime. */
 export const DEFAULT_RUNTIME_IMPORT = "mini-clojure-ts/runtime";
 
+/** Formatos de saída suportados. */
+export type CompileTarget = "esm" | "cjs" | "iife";
+
+/** Global de onde o bundle `iife` lê o runtime. */
+export const DEFAULT_RUNTIME_GLOBAL = "MiniClojureRuntime";
+
 export interface CompileProgramOptions {
     /** De onde importar o runtime. Ignorado quando `emitImport` é `false`. */
     runtimeImport?: string;
     /**
-     * Quando `false`, omite a linha de import e o código gerado assume que
+     * Quando `false`, omite o preâmbulo de módulo e o código gerado assume que
      * `$rt` já existe no escopo. Usado pelos testes, que injetam o runtime
      * diretamente em vez de resolver um módulo.
      */
     emitImport?: boolean;
+    /** Formato de saída. Padrão: `esm`. */
+    target?: CompileTarget;
+    /**
+     * Global de onde o `iife` lê o runtime. Só se aplica a esse target — é o
+     * único lugar em que `globalThis` aparece na saída.
+     */
+    runtimeGlobal?: string;
+    /** Gera um source map v3 junto com o código. */
+    sourceMap?: boolean;
+    /** Nome do arquivo `.clj` de origem, usado no source map. */
+    sourceFile?: string;
+    /** Conteúdo do fonte, embutido no source map. */
+    sourceContent?: string;
+    /** Nome do arquivo `.js` gerado, usado no `sourceMappingURL`. */
+    outputFile?: string;
+}
+
+export interface CompileResult {
+    /** O JavaScript gerado. */
+    code: string;
+    /** O JSON do source map, ou `null` se não foi pedido. */
+    map: string | null;
 }
 
 /** Palavras reservadas do JavaScript, que não podem virar identificadores. */
@@ -730,7 +760,10 @@ class Compiler {
         return this.emit(this.macroexpandAll(form));
     }
 
-    compile(forms: Expression[], opts: CompileProgramOptions = {}): string {
+    compile(
+        forms: Expression[],
+        opts: CompileProgramOptions = {},
+    ): CompileResult {
         // Fase 1: registrar macros e expandir tudo.
         const expanded: any[] = [];
         for (const form of forms) {
@@ -744,36 +777,130 @@ class Compiler {
         // Fase 2: descobrir os `def` antes de gerar código.
         for (const form of expanded) this.collectGlobals(form);
 
-        // Fase 3: gerar o corpo (popula usedCore).
+        // Fase 3: gerar o corpo (popula usedCore). Uma linha por forma de
+        // nível superior — é o que torna o source map possível.
         const body = expanded.map((form) => `${this.emit(form)};`);
 
-        // Preâmbulo, montado depois porque depende do que o corpo usou.
-        const prelude: string[] = [];
-        if (opts.emitImport !== false) {
-            const spec = opts.runtimeImport ?? DEFAULT_RUNTIME_IMPORT;
-            prelude.push(`import * as ${RT} from ${JSON.stringify(spec)};`, "");
-        }
+        // Fase 4: preâmbulo, montado depois porque depende do que o corpo usou.
+        const target = opts.target ?? "esm";
+        const declarations: string[] = [];
 
         // Um `def` do usuário sombreia a stdlib: o nome é declarado uma vez só.
         const coreNames = [...this.usedCore]
             .filter((name) => !this.globals.has(name))
             .sort();
         if (coreNames.length > 0) {
-            prelude.push("// Funções da stdlib usadas por este módulo.");
+            declarations.push("// Funções da stdlib usadas por este módulo.");
             for (const name of coreNames) {
-                prelude.push(
+                declarations.push(
                     `const ${mangle(name)} = ${RT}.core[${JSON.stringify(name)}];`,
                 );
             }
-            prelude.push("");
+            declarations.push("");
         }
 
         const globalNames = [...this.globals].map(mangle);
         if (globalNames.length > 0) {
-            prelude.push(`let ${globalNames.join(", ")};`, "");
+            declarations.push(`let ${globalNames.join(", ")};`, "");
         }
 
-        return [...prelude, ...body].join("\n") + "\n";
+        const { header, footer, indent } = this.moduleWrapper(target, opts);
+        const indented = (line: string) =>
+            line.length === 0 ? line : indent + line;
+
+        const lines = [
+            ...header,
+            ...declarations.map(indented),
+            ...body.map(indented),
+            ...footer,
+        ];
+
+        // Fase 5: source map. O corpo começa depois do cabeçalho e das
+        // declarações; cada forma ocupa exatamente uma linha.
+        let map: string | null = null;
+        if (opts.sourceMap) {
+            const bodyStart = header.length + declarations.length;
+            const mappings: Mapping[] = [];
+
+            expanded.forEach((form, index) => {
+                const loc = (form as any)?.loc;
+                if (!loc) return;
+                mappings.push({
+                    generatedLine: bodyStart + index,
+                    generatedColumn: indent.length,
+                    sourceLine: Math.max(0, loc.start.line - 1),
+                    sourceColumn: Math.max(0, loc.start.col - 1),
+                });
+            });
+
+            const outputFile = opts.outputFile ?? "output.js";
+            map = buildSourceMap({
+                file: outputFile,
+                source: opts.sourceFile ?? "input.clj",
+                sourceContent: opts.sourceContent ?? "",
+                mappings,
+            });
+            lines.push(`//# sourceMappingURL=${outputFile}.map`);
+        }
+
+        return { code: lines.join("\n") + "\n", map };
+    }
+
+    /**
+     * Abertura e fechamento do módulo, conforme o target.
+     *
+     * `esm` e `cjs` não tocam em `globalThis`. O `iife` é o único que toca —
+     * é dele que o runtime vem, já que um script de browser não faz import.
+     */
+    private moduleWrapper(
+        target: CompileTarget,
+        opts: CompileProgramOptions,
+    ): { header: string[]; footer: string[]; indent: string } {
+        const banner = "// Gerado por Mini-Clojure-TS. Não edite à mão.";
+
+        if (opts.emitImport === false) {
+            return { header: [banner], footer: [], indent: "" };
+        }
+
+        const spec = JSON.stringify(
+            opts.runtimeImport ?? DEFAULT_RUNTIME_IMPORT,
+        );
+
+        switch (target) {
+            case "cjs":
+                return {
+                    header: [
+                        banner,
+                        '"use strict";',
+                        `const ${RT} = require(${spec});`,
+                        "",
+                    ],
+                    footer: [],
+                    indent: "",
+                };
+
+            case "iife": {
+                const globalName = opts.runtimeGlobal ?? DEFAULT_RUNTIME_GLOBAL;
+                return {
+                    header: [
+                        banner,
+                        `(function (${RT}) {`,
+                        '    "use strict";',
+                        "",
+                    ],
+                    footer: [`})(globalThis[${JSON.stringify(globalName)}]);`],
+                    indent: "    ",
+                };
+            }
+
+            case "esm":
+            default:
+                return {
+                    header: [banner, `import * as ${RT} from ${spec};`, ""],
+                    footer: [],
+                    indent: "",
+                };
+        }
     }
 }
 
@@ -784,12 +911,12 @@ class Compiler {
  *
  * @param {Expression[]} forms As formas de nível superior já parseadas.
  * @param {CompileProgramOptions} [opts] Opções de emissão.
- * @return {string} O módulo JavaScript gerado.
+ * @return {CompileResult} O JavaScript gerado e, se pedido, o source map.
  */
 export function compileProgram(
     forms: Expression[],
     opts: CompileProgramOptions = {},
-): string {
+): CompileResult {
     return new Compiler().compile(forms, opts);
 }
 

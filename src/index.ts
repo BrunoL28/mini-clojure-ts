@@ -101,21 +101,24 @@ export function runFile(filepath: string, opts: RunOptions = {}): any {
  * Compila o código-fonte fornecido para JavaScript.
  *
  * @param {string} source O código-fonte a ser compilado.
+ * @param {CompileProgramOptions} [opts] Opções de emissão.
  * @return {string} O código JavaScript compilado.
  */
 export function compileSource(
     source: string,
     opts: CompileProgramOptions = {},
 ): string {
-    const header = "// Gerado por Mini-Clojure-TS. Não edite à mão.\n";
-    return header + compileProgram(parse(source), opts);
+    return compileProgram(parse(source), opts).code;
 }
 
 /**
  * Compila o código-fonte de um arquivo para JavaScript.
  *
+ * Quando `outFile` é informado, grava o `.js` — e também o `.js.map`, se
+ * `sourceMap` estiver ligado.
+ *
  * @param {string} filepath O caminho do arquivo a ser compilado.
- * @param {CompileOptions} [opts] Opções para compilação, incluindo o arquivo de saída.
+ * @param {CompileOptions} [opts] Opções de compilação e saída.
  * @throws {Error} Se o arquivo não for encontrado.
  * @return {string} O código JavaScript compilado.
  */
@@ -126,14 +129,34 @@ export function compileFile(
     if (!fs.existsSync(filepath)) {
         throw new Error(`Arquivo não encontrado: ${filepath}`);
     }
-    const source = fs.readFileSync(filepath, "utf-8");
-    const jsCode = compileSource(source, opts);
 
-    if (opts.outFile) {
-        fs.writeFileSync(opts.outFile, jsCode);
+    const source = fs.readFileSync(filepath, "utf-8");
+    const outFile = opts.outFile;
+
+    // O source map precisa dos caminhos relativos ao arquivo de saída.
+    const programOpts: CompileProgramOptions = {
+        ...opts,
+        sourceFile:
+            opts.sourceFile ??
+            (outFile
+                ? path.relative(path.dirname(outFile), filepath)
+                : path.basename(filepath)),
+        sourceContent: opts.sourceContent ?? source,
+    };
+    const outputFile = opts.outputFile ?? (outFile && path.basename(outFile));
+    if (outputFile) programOpts.outputFile = outputFile;
+
+    const result = compileProgram(parse(source), programOpts);
+
+    if (outFile) {
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        fs.writeFileSync(outFile, result.code);
+        if (result.map !== null) {
+            fs.writeFileSync(`${outFile}.map`, result.map);
+        }
     }
 
-    return jsCode;
+    return result.code;
 }
 
 /**

@@ -382,7 +382,8 @@ or
 mini-clj                       # REPL
 mini-clj app.clj               # executa um arquivo
 mini-clj -e '(reduce + [1 2 3])'   # avalia e imprime
-mini-clj -t app.clj -o build/app.js  # transpila para JS
+mini-clj -t app.clj             # compila para app.mjs
+mini-clj -t app.clj --target cjs --out-dir build -s -w
 mini-clj --help                # todas as opções
 ```
 
@@ -538,6 +539,16 @@ Compila: `let` com destructuring, mapas, keywords, `try/catch`, atoms,
 
 Não compila (falha com erro explícito): `require`, `load-file`, `macroexpand`.
 
+**Targets:** `esm` (padrão, `.mjs`), `cjs` (`.cjs`) e `iife` (`.js`).
+`globalThis` aparece **só** no `iife`. O runtime é publicado nos dois formatos,
+então `import` e `require` funcionam de verdade.
+
+**Source maps:** `--source-map` gera um `.map` v3 autocontido. Com
+`node --enable-source-maps`, o stack trace aponta a linha do `.clj`.
+
+**Watch:** `--watch` recompila a cada mudança e **não morre em erro de
+compilação**.
+
 ---
 
 ### API Pública (Embed)
@@ -573,7 +584,7 @@ console.log(ast);
 - [x] **v5.0:** Sec/Core Functions, Predicados e Tipos, Macros Utilitárias, Utilitários e IO básicos para uso no Node
 - [x] **v6.0:** Loader e Cache, Namespaces (decisão: sem `ns`), Empacotamento
 - [x] **v7.0:** Transpiler como Compilador Útil, Runtime de Suporte, Macroexpand em Compile-Time
-- [ ] **v7.1:** Output e Targets (`esm`/`cjs`/`iife`), Source Maps, Watch Mode
+- [x] **v7.1:** Output e Targets (`esm`/`cjs`/`iife`), Source Maps, Watch Mode
 - [ ] **v8.0:** Sandbox/Whitelist, Definição de Política de Interop
 
 ---

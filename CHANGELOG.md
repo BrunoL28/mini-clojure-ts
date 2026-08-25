@@ -7,6 +7,43 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [7.1.0] — 2026-08-25
+
+Segunda parte do **R5 — Compilador de verdade**, que fecha a release.
+
+### Adicionado
+
+- **Targets de saída** ([#22]): `--target esm|cjs|iife`.
+    - `globalThis` aparece **somente** no `iife` — é de lá que o runtime vem,
+      já que um script de browser não faz `import`. `--runtime-global` permite
+      trocar o nome do global.
+    - O pacote passa a publicar o runtime **nos dois formatos** (`dist/runtime`
+      em ESM e `dist/cjs/runtime` em CommonJS), então `require` e `import`
+      funcionam de verdade — validado com `pnpm pack` + `npm i`.
+    - Extensão padrão explícita por target: `esm` → `.mjs`, `cjs` → `.cjs`,
+      `iife` → `.js`, para a saída não depender do `"type"` do pacote consumidor.
+- **`--out-dir`** ([#22]), além de `--out-file` (com `-o` e `--out` como alias).
+  O diretório de saída é criado quando não existe.
+- **Source maps** ([#23]): `--source-map` gera um mapa v3 com `sourcesContent`
+  embutido e adiciona o `//# sourceMappingURL=`. Com
+  `node --enable-source-maps`, um erro em runtime aponta a linha do `.clj`.
+  Codificação VLQ própria em `src/core/SourceMap.ts`, sem dependência nova.
+- **Modo watch** ([#24]): `--watch` recompila a cada mudança, com debounce de
+  100 ms. Um erro de compilação **não derruba o watch** — ele reporta e segue
+  observando. Observa o diretório em vez do arquivo, porque editores salvam
+  criando um temporário e renomeando.
+- Script `pnpm build` passa a gerar também o build CommonJS do runtime
+  (`tsconfig.cjs.json`).
+
+### Modificado
+
+- `compileProgram` passa a devolver `{ code, map }` em vez de uma string.
+  `compileSource` continua devolvendo apenas o código.
+- `compileFile` grava o `.map` junto quando `sourceMap` está ligado, e cria o
+  diretório de saída se necessário.
+- O banner do arquivo gerado passou para dentro do compilador, para o
+  cálculo de linhas do source map ficar num lugar só.
+
 ## [7.0.0] — 2026-08-25
 
 Primeira parte do **R5 — Compilador de verdade**. O transpilador deixou de ser
@@ -163,7 +200,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...HEAD
+[7.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...v7.1.0
 [7.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.1...v7.0.0
 [6.0.1]: https://github.com/BrunoL28/mini-clojure-ts/compare/v6.0.0...v6.0.1
 [6.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v5.0.0...v6.0.0
@@ -185,4 +223,7 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#19]: https://github.com/BrunoL28/mini-clojure-ts/issues/19
 [#20]: https://github.com/BrunoL28/mini-clojure-ts/issues/20
 [#21]: https://github.com/BrunoL28/mini-clojure-ts/issues/21
+[#22]: https://github.com/BrunoL28/mini-clojure-ts/issues/22
+[#23]: https://github.com/BrunoL28/mini-clojure-ts/issues/23
+[#24]: https://github.com/BrunoL28/mini-clojure-ts/issues/24
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38
