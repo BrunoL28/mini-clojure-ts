@@ -127,6 +127,28 @@ const PROGRAMAS: [string, string][] = [
         "(defmacro par (a b) `[~a ~b]) (println (par 1 2))",
     ],
     [
+        "unquote-splicing em lista",
+        "(def xs [1 2 3]) (println (pr-str `(a ~@xs b)))",
+    ],
+    [
+        "unquote-splicing em vetor",
+        "(def xs [1 2 3]) (println (pr-str `[0 ~@xs 4]))",
+    ],
+    ["unquote-splicing de nil", "(println (pr-str `(a ~@nil b)))"],
+    [
+        "dois splices na mesma forma",
+        "(def a [1 2]) (def b [3 4]) (println (pr-str `(~@a x ~@b)))",
+    ],
+    ["quasiquote dentro de mapa", "(def x 9) (println (pr-str `{:k ~x}))"],
+    [
+        "macro variadica com ~@",
+        "(defmacro lista [& i] `(vector ~@i)) (println (pr-str (lista 1 2 3)))",
+    ],
+    [
+        "macro com corpo em do via ~@",
+        "(defmacro quando [t & c] `(if ~t (do ~@c) nil)) (println (quando true 1 :fim))",
+    ],
+    [
         "igualdade estrutural",
         `(println (= [1 [2 {:a 1}]] [1 [2 {:a 1}]]) (= {:a 1} {:a 2}))`,
     ],

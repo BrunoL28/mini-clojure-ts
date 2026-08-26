@@ -388,14 +388,23 @@ class Compiler {
 
     /** Igual a `emitQuoted`, mas `(unquote x)` volta a ser código. */
     private emitQuasi(form: any): string {
-        if (headName(form) === "unquote") {
+        const cabeca = headName(form);
+
+        if (cabeca === "unquote") {
             return this.emit((form as any[])[1]);
         }
 
-        if (form instanceof ClojureVector) {
-            const items = form.map((i) => this.emitQuasi(i)).join(", ");
-            return `${RT}.vec([${items}])`;
+        if (cabeca === "unquote-splicing") {
+            throw new ClojureError(
+                "unquote-splicing (~@) só pode aparecer dentro de uma sequência",
+                (form as any).loc,
+            );
         }
+
+        if (form instanceof ClojureVector) {
+            return `${RT}.vec(${this.emitQuasiItems(form)})`;
+        }
+
         if (form instanceof ClojureMap) {
             const pairs: string[] = [];
             for (const [k, v] of form) {
@@ -403,11 +412,37 @@ class Compiler {
             }
             return `${RT}.map([${pairs.join(", ")}])`;
         }
+
         if (Array.isArray(form)) {
-            const items = form.map((i) => this.emitQuasi(i)).join(", ");
-            return `${RT}.list([${items}])`;
+            return `${RT}.list(${this.emitQuasiItems(form)})`;
         }
+
         return this.emitQuoted(form);
+    }
+
+    /**
+     * Gera o array de itens de uma sequência em quasiquote.
+     *
+     * Sem nenhum `~@`, sai um array literal. Com `~@`, sai uma chamada ao
+     * runtime que concatena os pedaços — a sequência intercalada só é
+     * conhecida em tempo de execução.
+     */
+    private emitQuasiItems(items: any[]): string {
+        const temSplice = items.some(
+            (item) => headName(item) === "unquote-splicing",
+        );
+
+        if (!temSplice) {
+            return `[${items.map((item) => this.emitQuasi(item)).join(", ")}]`;
+        }
+
+        const pedacos = items.map((item) =>
+            headName(item) === "unquote-splicing"
+                ? `${RT}.spliceable(${this.emit((item as any[])[1])})`
+                : `[${this.emitQuasi(item)}]`,
+        );
+
+        return `${RT}.splice([${pedacos.join(", ")}])`;
     }
 
     /**

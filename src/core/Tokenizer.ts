@@ -51,8 +51,10 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
     let line = 1;
     let col = 1;
 
+    // `~@` precisa vir antes da classe de um caractere só, senão vira
+    // `~` seguido de `@` — ou seja, unquote de um deref.
     const regex =
-        /"(?:\\.|[^\\"\n])*"?|[\(\)\[\]\{\}'`~@]|;.*|[^\s,()\[\]\{\}'`~@]+/y;
+        /"(?:\\.|[^\\"\n])*"?|~@|[\(\)\[\]\{\}'`~@]|;.*|[^\s,()\[\]\{\}'`~@]+/y;
 
     while (current < input.length) {
         const char = input[current];

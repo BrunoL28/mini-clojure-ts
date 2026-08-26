@@ -99,6 +99,16 @@ export function parse(tokens: Token[]): Expression {
         return list;
     }
 
+    if (token.value === "~@") {
+        const nextExpr = parse(tokens);
+        const list: ClojureList = [
+            new ClojureSymbol("unquote-splicing"),
+            nextExpr,
+        ];
+        list.loc = token.loc;
+        return list;
+    }
+
     if (token.value === "~") {
         const nextExpr = parse(tokens);
         const list: ClojureList = [new ClojureSymbol("unquote"), nextExpr];

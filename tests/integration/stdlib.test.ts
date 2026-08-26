@@ -78,6 +78,11 @@ describe("Stdlib R3 — suítes de aceitação", () => {
         assert.match(output, /--- FIM MODULES SUITE ---/);
     });
 
+    it("[R1/E1] docs/semantics.md confere com a linguagem (#1)", () => {
+        const output = runFixture("semantics_spec_suite.clj");
+        assert.match(output, /--- FIM SEMANTICS SUITE ---/);
+    });
+
     it("assert falha com a mensagem da asserção", () => {
         const env = createGlobalEnv();
         assert.throws(() => {

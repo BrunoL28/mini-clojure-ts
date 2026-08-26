@@ -16,6 +16,7 @@ import { ClojureError } from "../errors/ClojureError.js";
 import { prStr } from "./Printer.js";
 import { resolveJsSymbol, getInteropPolicy } from "./Interop.js";
 import { checkTimeLimit } from "./Limits.js";
+import { spliceItems } from "./Runtime.js";
 import { traceEnter, traceExit, traceMacroexpand, isTracing } from "./Trace.js";
 import { Bounce, trampoline } from "./Trampoline.js";
 import {
@@ -57,29 +58,76 @@ const SPECIAL_FORMS = new Set([
     "quasiquote",
 ]);
 
+/** Reconhece `(unquote x)` — o que o reader produz para `~x`. */
+function isUnquote(node: any): boolean {
+    if (!Array.isArray(node) || node.length === 0) return false;
+    const head = node[0];
+    return (
+        (head instanceof ClojureSymbol && head.value === "unquote") ||
+        head === "unquote"
+    );
+}
+
+/** Reconhece `(unquote-splicing x)` — o que o reader produz para `~@x`. */
+function isUnquoteSplicing(node: any): boolean {
+    if (!Array.isArray(node) || node.length === 0) return false;
+    const head = node[0];
+    return (
+        (head instanceof ClojureSymbol && head.value === "unquote-splicing") ||
+        head === "unquote-splicing"
+    );
+}
+
+/**
+ * Processa os itens de uma sequência dentro de um quasiquote, intercalando
+ * os `~@` no lugar de aninhá-los.
+ */
+function expandirItens(items: any[], env: Env): any[] {
+    const saida: any[] = [];
+
+    for (const item of items) {
+        if (isUnquoteSplicing(item)) {
+            const valor = trampoline(evaluate((item as any[])[1], env));
+            for (const parte of spliceItems(valor)) saida.push(parte);
+            continue;
+        }
+        saida.push(evalQuasiquote(item, env));
+    }
+
+    return saida;
+}
+
 function evalQuasiquote(ast: any, env: Env): any {
+    // Vetor antes de Array: `ClojureVector` estende `Array`, e a ordem
+    // contrária faria `` `[~x] `` devolver uma lista.
+    if (ast instanceof ClojureVector) {
+        return ClojureVector.fromArray(expandirItens(ast, env));
+    }
+
     if (Array.isArray(ast)) {
         if (ast.length === 0) return [];
-
-        const op = ast[0];
-        const isUnquote =
-            (op instanceof ClojureSymbol && op.value === "unquote") ||
-            op === "unquote";
-
-        if (isUnquote) {
-            return evaluate(ast[1], env);
+        if (isUnquote(ast)) return trampoline(evaluate(ast[1], env));
+        if (isUnquoteSplicing(ast)) {
+            throw new InvalidParamError(
+                "unquote-splicing (~@) só pode aparecer dentro de uma sequência",
+            );
         }
+        return expandirItens(ast, env);
+    }
 
-        return ast.map((item) => evalQuasiquote(item, env));
+    // Mapas também são código: sem isso, `` `{:k ~x} `` devolvia
+    // `{:k (unquote x)}` em vez do valor.
+    if (ast instanceof ClojureMap) {
+        let resultado = new ClojureMap();
+        for (const [chave, valor] of ast) {
+            resultado = resultado.assoc(
+                evalQuasiquote(chave, env),
+                evalQuasiquote(valor, env),
+            );
+        }
+        return resultado;
     }
-    if (ast instanceof ClojureVector) {
-        return ClojureVector.fromArray(
-            ast.map((item) => evalQuasiquote(item, env)),
-        );
-    }
-    if (ast instanceof ClojureSymbol) {
-        return ast;
-    }
+
     return ast;
 }
 
@@ -261,7 +309,8 @@ export function macroexpand1(form: any, env: Env): any {
 
     if (macroVal instanceof ClojureMacro) {
         const args = form.slice(1);
-        const macroEnv = new Env(macroVal.env, macroVal.params, args);
+        const macroEnv = new Env(macroVal.env);
+        bind(macroEnv, macroVal.params, args);
         const expanded = trampoline(evaluate(macroVal.body, macroEnv));
 
         traceMacroexpand(form, expanded);
@@ -767,19 +816,32 @@ export function evaluate(x: Expression, env: Env): any {
                 }
 
                 if (opName === "defmacro") {
-                    const [name, params, body] = args;
+                    const [name, params, ...body] = args;
                     let macroName = name;
                     if (name instanceof ClojureSymbol) macroName = name.value;
 
                     if (typeof macroName !== "string")
                         throw new InvalidParamError("Nome de macro inválido");
 
-                    const paramNames = (params as any[]).map((p) =>
-                        p instanceof ClojureSymbol ? p.value : p,
-                    );
+                    if (!Array.isArray(params)) {
+                        throw new InvalidParamError(
+                            "Os parâmetros de 'defmacro' devem ser uma sequência",
+                        );
+                    }
 
-                    const macro = new ClojureMacro(paramNames, body!, env);
-                    env.set(macroName, macro);
+                    // Corpo múltiplo vira um `do`, como em `defn`; antes as
+                    // formas extras eram silenciosamente descartadas.
+                    const macroBody =
+                        body.length === 1
+                            ? body[0]!
+                            : [new ClojureSymbol("do"), ...body];
+
+                    // Guarda a forma CRUA dos parâmetros. Guardar só os nomes
+                    // impedia `&`, o que quebrava macros variádicas.
+                    env.set(
+                        macroName,
+                        new ClojureMacro(params as any[], macroBody, env),
+                    );
                     return macroName;
                 }
 
@@ -791,7 +853,8 @@ export function evaluate(x: Expression, env: Env): any {
             const func = trampoline(evaluate(op!, env));
 
             if (func instanceof ClojureMacro) {
-                const macroEnv = new Env(func.env, func.params, args);
+                const macroEnv = new Env(func.env);
+                bind(macroEnv, func.params, args);
                 const expandedCode = trampoline(evaluate(func.body, macroEnv));
                 // Caminho normal de uso de macro — não passa por
                 // `macroexpand1`, então o trace precisa do gancho aqui também.

@@ -7,6 +7,37 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [9.1.0] — 2026-08-25
+
+Primeiro item do backlog e o último resquício do R1.
+
+### Adicionado
+
+- **`~@` (unquote-splicing)** ([#32]). O reader passa a ler `~@` como um token
+  único — antes virava `~` seguido de `@`, ou seja, unquote de um deref.
+  Funciona em listas e vetores, em qualquer quantidade por forma, e o splice
+  de `nil` ou de coleção vazia não insere nada. Fora de uma sequência é erro.
+  Implementado com paridade: interpretado e compilado.
+- **`docs/semantics.md`** ([#1]): especificação do subset — valores,
+  truthiness, igualdade, formas especiais, avaliação, recursão de cauda,
+  macros, destructuring, erros, e uma seção explícita de diferenças em
+  relação ao Clojure. Cada afirmação do documento é verificada em
+  `tests/fixtures/semantics_spec_suite.clj`, que roda no CI: se a linguagem
+  mudar sem o documento mudar junto, o teste quebra.
+
+### Corrigido
+
+- **Quasiquote não percorria mapas** ([#32]). `` `{:k ~x} `` devolvia
+  `{:k (unquote x)}` em vez de `{:k 42}` — chaves e valores não eram
+  processados.
+- **`defmacro` não suportava `&` rest** ([#32]). Os argumentos eram ligados
+  por posição, sem passar pelo `bind`, então `(defmacro m [& itens] ...)`
+  ligava o próprio `&` ao primeiro argumento. Isso tornava `~@` quase
+  inútil, já que macro variádica é o caso de uso principal. Agora `defmacro`
+  usa o mesmo `bind` do `fn`, o que também traz destructuring nos argumentos.
+- **`defmacro` descartava o corpo além da primeira forma**, em silêncio.
+  Agora várias formas viram um `do`, como em `defn`.
+
 ## [9.0.0] — 2026-08-25
 
 Release **R7 — Performance, observabilidade e manutenção**, que fecha o
@@ -317,7 +348,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.0.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.1.0...HEAD
+[9.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...v8.0.0
 [7.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.0.0...v7.1.0
@@ -352,4 +384,6 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#29]: https://github.com/BrunoL28/mini-clojure-ts/issues/29
 [#30]: https://github.com/BrunoL28/mini-clojure-ts/issues/30
 [#31]: https://github.com/BrunoL28/mini-clojure-ts/issues/31
+[#1]: https://github.com/BrunoL28/mini-clojure-ts/issues/1
+[#32]: https://github.com/BrunoL28/mini-clojure-ts/issues/32
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

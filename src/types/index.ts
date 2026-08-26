@@ -168,7 +168,9 @@ export class ClojureAtom {
 
 export class ClojureMacro {
     constructor(
-        public params: string[],
+        // A forma crua dos parâmetros, não os nomes: é o que permite `&` e
+        // destructuring nos argumentos da macro, pelo mesmo `bind` do `fn`.
+        public params: any[],
         public body: Expression,
         public env: Env,
     ) {}

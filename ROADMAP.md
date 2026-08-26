@@ -94,13 +94,13 @@ Nenhuma (primeira release).
 
 ### E1. Especificação e docs do subset [DOC]
 
-- [ ] Criar `docs/semantics.md` com:
-    - formas especiais suportadas
-    - truthiness
-    - macros + expansão
-    - interop JS (regras de `js/`, `new`, `.`)
-    - limitações conhecidas (ex.: sem `~@`)
-- [ ] Exemplos “canônicos” em `docs/examples.md`
+- [x] Criar `docs/semantics.md` com:
+    - [x] formas especiais suportadas
+    - [x] truthiness
+    - [x] macros + expansão
+    - [x] interop JS (regras de `js/`, `new`, `.`, `.-`)
+    - [x] limitações conhecidas e diferenças vs Clojure
+- [x] Exemplos “canônicos” (na própria `docs/semantics.md`, verificados no CI)
 
 ### E2. Posições e erros (linha/coluna) [INT][COMP][DX]
 
@@ -431,7 +431,7 @@ Escolher um dos caminhos:
 
 ## Backlog (ideias futuras, sem compromisso)
 
-- [ ] `~@` (unquote-splicing)
+- [x] `~@` (unquote-splicing)
 - [ ] lazy seqs (subset)
 - [ ] transducers (subset)
 - [ ] melhor pretty-printer / formatter

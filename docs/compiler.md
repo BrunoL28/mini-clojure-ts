@@ -128,9 +128,11 @@ compilação**. Não existe leitor (reader) no código gerado:
 $rt.list([$rt.sym("a"), $rt.vec([1, $rt.kw(":b")])]);
 ```
 
-Consequência: `quasiquote` com `unquote` funciona (o `~x` vira o código
-compilado de `x`), mas **não há como construir formas novas a partir de strings
-em runtime** — para isso é preciso o interpretador.
+Consequência: `quasiquote` com `unquote` (`~x`) e `unquote-splicing` (`~@xs`)
+funciona — o `~x` vira o código compilado de `x`, e o `~@xs` vira uma chamada
+ao runtime que concatena os pedaços, já que a sequência intercalada só é
+conhecida em tempo de execução. Mas **não há como construir formas novas a
+partir de strings em runtime** — para isso é preciso o interpretador.
 
 ---
 

@@ -30,6 +30,7 @@
     - [Installation](#installation)
     - [Usage](#usage)
     - [Testing](#testing)
+- [Documentação](#documentação)
 - [Biblioteca Padrão](#biblioteca-padrão)
 - [Módulos](#módulos)
 - [Compilador](#compilador)
@@ -461,6 +462,20 @@ As **suítes de aceitação** (executadas no CI) ficam em `tests/fixtures/` e ro
 | `predicates_suite.clj`  | Predicados e tipos                           |
 | `core_macros_suite.clj` | `defn` `when` `and` `or` `cond` `->` `->>`   |
 | `io_util_suite.clj`     | `assert` `time` `slurp` `spit`               |
+
+---
+
+## Documentação
+
+| Documento                                  | Sobre                                           |
+| ------------------------------------------ | ----------------------------------------------- |
+| **[docs/semantics.md](docs/semantics.md)** | Especificação do subset e diferenças vs Clojure |
+| [docs/stdlib.md](docs/stdlib.md)           | Referência completa do core                     |
+| [docs/modules.md](docs/modules.md)         | `require`, `load-file` e a política de módulos  |
+| [docs/compiler.md](docs/compiler.md)       | Pipeline, targets, source maps e watch          |
+| [docs/interop.md](docs/interop.md)         | Contrato de interop e sandbox                   |
+| [docs/browser.md](docs/browser.md)         | Bundles e limitações no browser                 |
+| [docs/performance.md](docs/performance.md) | Benchmarks, limites e observabilidade           |
 
 ---
 

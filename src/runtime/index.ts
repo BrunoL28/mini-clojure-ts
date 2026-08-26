@@ -18,13 +18,21 @@ import {
 } from "../types/index.js";
 import { initialConfig } from "../stdlib/index.js";
 import { callFn, truthy as isTruthy } from "../core/Invoke.js";
-import { equals as structuralEquals } from "../core/Runtime.js";
+import {
+    equals as structuralEquals,
+    spliceItems,
+    splice as spliceChunks,
+} from "../core/Runtime.js";
 import { prStr as printStr } from "../core/Printer.js";
 
 /** A stdlib, indexada pelo nome original (`every?`, `assoc-in`, ...). */
 export const core: { [key: string]: any } = initialConfig;
 
 export const truthy = isTruthy;
+/** Resolve o valor de um `~@` numa sequência intercalável. */
+export const spliceable = spliceItems;
+/** Concatena os pedaços de uma sequência com `~@` já resolvido. */
+export const splice = spliceChunks;
 export const equals = structuralEquals;
 export const prStr = printStr;
 
