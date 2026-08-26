@@ -15,6 +15,7 @@ import { tokenize } from "../core/Tokenizer.js";
 import { callFn, isCallable, truthy } from "../core/Invoke.js";
 import { getHost } from "../core/Host.js";
 import { setPrintLimits, getPrintLimits } from "../core/Limits.js";
+import { ppStr } from "../core/PrettyPrinter.js";
 import {
     OPEN_POLICY,
     accessMember,
@@ -416,6 +417,27 @@ export const initialConfig: { [key: string]: any } = {
         return null;
     },
 
+    // (pprint x) — imprime com quebras de linha quando não cabe na largura
+    pprint: (value: any) => {
+        console.log(ppStr(value, { width: getPrintLimits().width }));
+        return null;
+    },
+
+    // (pprint-str x) — o mesmo, mas devolve a string
+    "pprint-str": (value: any) =>
+        ppStr(value, { width: getPrintLimits().width }),
+
+    // (set-print-width! n) — largura alvo do pprint
+    "set-print-width!": (n: any) => {
+        if (typeof n !== "number" || n < 1) {
+            throw new InvalidParamError(
+                "set-print-width! espera um número >= 1",
+            );
+        }
+        setPrintLimits({ width: n });
+        return n;
+    },
+
     // (set-print-length! n) — n itens por coleção, ou nil para sem limite
     "set-print-length!": (n: any) => {
         if (n !== null && (typeof n !== "number" || n < 0)) {
@@ -443,7 +465,8 @@ export const initialConfig: { [key: string]: any } = {
         const limites = getPrintLimits();
         return new ClojureMap()
             .assoc(new ClojureKeyword(":length"), limites.length)
-            .assoc(new ClojureKeyword(":level"), limites.level);
+            .assoc(new ClojureKeyword(":level"), limites.level)
+            .assoc(new ClojureKeyword(":width"), limites.width);
     },
 
     // (slurp path) — Node-only

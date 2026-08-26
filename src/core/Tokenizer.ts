@@ -45,7 +45,22 @@ function validateString(tokenValue: string, loc: SourceLocation) {
     }
 }
 
-export function tokenize(input: string, filename: string = "unknown"): Token[] {
+export interface TokenizeOptions {
+    /**
+     * Emite os comentários como tokens `type: "comment"` em vez de descartá-los.
+     *
+     * Só o formatador liga isto: o avaliador não tem o que fazer com
+     * comentário, e o `Parser` não os espera. Sem essa opção, formatar um
+     * arquivo apagaria todos os comentários dele.
+     */
+    keepComments?: boolean;
+}
+
+export function tokenize(
+    input: string,
+    filename: string = "unknown",
+    options: TokenizeOptions = {},
+): Token[] {
     const tokens: Token[] = [];
     let current = 0;
     let line = 1;
@@ -95,6 +110,8 @@ export function tokenize(input: string, filename: string = "unknown"): Token[] {
             };
 
             if (value.startsWith(";")) {
+                if (!options.keepComments) continue;
+                tokens.push({ type: "comment", value, loc });
                 continue;
             }
 

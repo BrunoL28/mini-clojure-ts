@@ -8,7 +8,7 @@ import {
 } from "../../src/core/Limits.js";
 
 function semLimites() {
-    setPrintLimits({ length: null, level: null });
+    setPrintLimits({ length: null, level: null, width: 80 });
     clearTimeLimit();
 }
 
@@ -26,7 +26,8 @@ describe("Limites — impressão (#30)", () => {
 
     it("sem limite por padrão, para pr-str continuar fazendo roundtrip", () => {
         semLimites();
-        assert.deepStrictEqual(getPrintLimits(), { length: null, level: null });
+        assert.strictEqual(getPrintLimits().length, null);
+        assert.strictEqual(getPrintLimits().level, null);
         assert.strictEqual(
             runSource("(pr-str (range 20))"),
             "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19)",

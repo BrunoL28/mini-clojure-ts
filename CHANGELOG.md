@@ -7,6 +7,36 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [9.2.0] — 2026-08-26
+
+Item de backlog [#35]: impressão legível de dados e formatação de código.
+
+### Adicionado
+
+- **`pprint` e `pprint-str`**: impressão com quebra de linha e indentação.
+  Cabe na largura, sai numa linha; só o que não cabe quebra. Mapas quebram por
+  par chave/valor, e sequências de escalares **preenchem a linha** em vez de
+  gastar uma por item. `set-print-width!` ajusta a largura alvo (padrão 80),
+  e `print-limits` passa a reportá-la.
+- **`mini-clj fmt`**: formatador de código-fonte, com `--write`, `--check` e
+  `--width`. Sem flag, escreve na saída padrão — o menos destrutivo é o padrão.
+  `--check` sai com erro listando os arquivos desalinhados.
+- **`keepComments` no `tokenize`**: emite os comentários como tokens em vez de
+  descartá-los. Sem isso, formatar um arquivo apagaria todos os comentários
+  dele. Desligado por padrão, então nada mais muda.
+- Documentação em [`docs/formatting.md`](docs/formatting.md).
+
+### Garantias do formatador
+
+Verificadas em **todo `.clj` do repositório**, no CI:
+
+- **Não altera o programa:** `parse(format(x))` é igual a `parse(x)`.
+- **É idempotente:** `format(format(x))` é igual a `format(x)`.
+- **Não perde comentários.**
+
+Fonte que não parseia não é formatado: o comando reporta o erro com linha e
+coluna e segue para o próximo arquivo.
+
 ## [9.1.0] — 2026-08-25
 
 Primeiro item do backlog e o último resquício do R1.
@@ -348,7 +378,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.1.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.2.0...HEAD
+[9.2.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.1.0...v9.2.0
 [9.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...v9.0.0
 [8.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v7.1.0...v8.0.0
@@ -386,4 +417,5 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#31]: https://github.com/BrunoL28/mini-clojure-ts/issues/31
 [#1]: https://github.com/BrunoL28/mini-clojure-ts/issues/1
 [#32]: https://github.com/BrunoL28/mini-clojure-ts/issues/32
+[#35]: https://github.com/BrunoL28/mini-clojure-ts/issues/35
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

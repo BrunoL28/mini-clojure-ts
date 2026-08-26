@@ -404,6 +404,7 @@ mini-clj --help                       # todas as opções
 | `--trace-macroexpand`   | Imprime cada expansão de macro (stderr)          |
 | `--trace-depth <n>`     | Profundidade máxima impressa no trace            |
 | `--profile`             | Conta formas e mede o tempo ao final             |
+| `fmt <arquivos>`        | Formata código-fonte (`--write`, `--check`)      |
 | `--repl`                | Força o REPL                                     |
 | `-h`, `--help`          | Ajuda                                            |
 | `-v`, `--version`       | Versão                                           |
@@ -686,6 +687,21 @@ mais avaliadas:
   fib                       8.361   22.2%
   if                        8.361   22.2%
 ```
+
+Para ler dado grande sem virar uma linha só, e para formatar código:
+
+```clojure
+(pprint {:nome "ana" :tags [:admin :dev] :endereco {:cidade "sp"}})
+```
+
+```sh
+mini-clj fmt --write src/*.clj    # formata
+mini-clj fmt --check src/*.clj    # falha se algo estiver fora do formato
+```
+
+O formatador **preserva comentários** e é verificado contra duas propriedades
+em todo `.clj` do repo: não altera o programa, e é idempotente. Detalhes em
+[docs/formatting.md](docs/formatting.md).
 
 > **Não há limite de memória.** Um programa que aloca sem parar continua capaz
 > de derrubar o processo — `--timeout` só interrompe quem está avaliando formas.

@@ -69,6 +69,8 @@ export function checkTimeLimit(): void {
 // ---------- Limites de impressão ----------
 
 export interface PrintLimits {
+    /** Largura alvo do `pprint`, em colunas. */
+    width: number;
     /** Máximo de itens mostrados por coleção. `null` = sem limite. */
     length: number | null;
     /** Profundidade máxima de aninhamento. `null` = sem limite. */
@@ -77,7 +79,11 @@ export interface PrintLimits {
 
 // Padrão sem limite: `pr-str` precisa continuar fazendo roundtrip com
 // `read-string`. Quem limita é o contexto de exibição (REPL, `--print-length`).
-const limitesDeImpressao: PrintLimits = { length: null, level: null };
+const limitesDeImpressao: PrintLimits = {
+    length: null,
+    level: null,
+    width: 80,
+};
 
 /**
  * Ajusta os limites de impressão.
@@ -88,6 +94,7 @@ export function setPrintLimits(limites: Partial<PrintLimits>): void {
     if (limites.length !== undefined)
         limitesDeImpressao.length = limites.length;
     if (limites.level !== undefined) limitesDeImpressao.level = limites.level;
+    if (limites.width !== undefined) limitesDeImpressao.width = limites.width;
 }
 
 /**

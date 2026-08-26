@@ -20,6 +20,7 @@ import { CURRENT_FILE } from "./core/Modules.js";
 import type { CompileTarget } from "./core/Compiler.js";
 import { setPrintLimits } from "./core/Limits.js";
 import { startTracing, stopTracing, printProfile } from "./core/Trace.js";
+import { format } from "./core/Formatter.js";
 
 const HISTORY_FILE = path.join(os.homedir(), ".mini-clj-history");
 
@@ -361,6 +362,138 @@ function handleWatch(filepath: string, opts: CliOptions) {
     compileOnce(filepath, opts, true);
 }
 
+// --- Subcomando: fmt ---
+
+interface FmtOptions {
+    escrever: boolean;
+    checar: boolean;
+    largura: number;
+    arquivos: string[];
+}
+
+function parseFmtArgs(argv: string[]): FmtOptions {
+    const opts: FmtOptions = {
+        escrever: false,
+        checar: false,
+        largura: 80,
+        arquivos: [],
+    };
+
+    for (let i = 0; i < argv.length; i++) {
+        const arg = argv[i]!;
+        switch (arg) {
+            case "-w":
+            case "--write":
+                opts.escrever = true;
+                break;
+            case "-c":
+            case "--check":
+                opts.checar = true;
+                break;
+            case "--width": {
+                const valor = Number(argv[++i]);
+                if (!Number.isInteger(valor) || valor < 20) {
+                    throw new Error("--width espera um inteiro >= 20.");
+                }
+                opts.largura = valor;
+                break;
+            }
+            default:
+                if (arg.startsWith("-")) {
+                    throw new Error(`Opção desconhecida em fmt: ${arg}`);
+                }
+                opts.arquivos.push(arg);
+        }
+    }
+
+    if (opts.escrever && opts.checar) {
+        throw new Error("Use --write OU --check, não os dois.");
+    }
+    if (opts.arquivos.length === 0) {
+        throw new Error("fmt requer ao menos um arquivo.");
+    }
+
+    return opts;
+}
+
+/**
+ * Formata arquivos `.clj`.
+ *
+ * Sem `--write` nem `--check`, escreve o resultado na saída padrão — o
+ * comportamento menos destrutivo é o padrão.
+ */
+function handleFmt(argv: string[]) {
+    let opts: FmtOptions;
+    try {
+        opts = parseFmtArgs(argv);
+    } catch (error: any) {
+        console.error(`\x1b[31m${error.message}\x1b[0m`);
+        process.exit(1);
+    }
+
+    const desalinhados: string[] = [];
+    let alterados = 0;
+    let falhas = 0;
+
+    for (const nome of opts.arquivos) {
+        const caminho = path.resolve(process.cwd(), nome);
+
+        if (!fs.existsSync(caminho)) {
+            console.error(`\x1b[31mArquivo não encontrado: ${nome}\x1b[0m`);
+            falhas++;
+            continue;
+        }
+
+        const original = fs.readFileSync(caminho, "utf-8");
+        let formatado: string;
+        try {
+            formatado = format(original, { width: opts.largura });
+        } catch (error: any) {
+            // Fonte inválido não é formatável — e reescrevê-lo seria pior.
+            console.error(
+                `\x1b[31m${displayPath(caminho)}: ${error.message}\x1b[0m`,
+            );
+            falhas++;
+            continue;
+        }
+
+        if (opts.checar) {
+            if (formatado !== original) desalinhados.push(displayPath(caminho));
+            continue;
+        }
+
+        if (opts.escrever) {
+            if (formatado !== original) {
+                fs.writeFileSync(caminho, formatado, "utf-8");
+                console.log(`\x1b[32m✔\x1b[0m ${displayPath(caminho)}`);
+                alterados++;
+            }
+            continue;
+        }
+
+        process.stdout.write(formatado);
+    }
+
+    if (opts.checar && desalinhados.length > 0) {
+        console.error("Fora do formato:");
+        for (const arquivo of desalinhados) console.error(`  ${arquivo}`);
+        console.error(
+            `\n${desalinhados.length} arquivo(s). Rode 'mini-clj fmt --write' para corrigir.`,
+        );
+        process.exit(1);
+    }
+
+    if (opts.escrever) {
+        console.log(
+            alterados === 0
+                ? "Nada a mudar."
+                : `${alterados} arquivo(s) formatado(s).`,
+        );
+    }
+
+    if (falhas > 0) process.exit(1);
+}
+
 // --- Entry Point ---
 
 function readVersion(): string {
@@ -381,6 +514,7 @@ Uso:
   mini-clj <arquivo.clj>         Executa um arquivo
   mini-clj -e "<código>"         Avalia o código e imprime o resultado
   mini-clj -t <arquivo.clj>      Compila para JavaScript
+  mini-clj fmt <arquivo.clj>     Formata código-fonte
 
 Opções gerais:
   -e, --eval <código>    Avalia uma expressão e imprime o resultado
@@ -391,6 +525,11 @@ Opções gerais:
       --timeout <ms>     Interrompe a execução depois de N ms (0 = sem limite)
       --print-length <n> Máximo de itens por coleção ao imprimir (nil = sem limite;
                          o REPL usa 100 por padrão)
+
+Formatação (mini-clj fmt <arquivos...>):
+  -w, --write            Reescreve os arquivos no lugar
+  -c, --check            Sai com erro se algum estiver fora do formato
+      --width <n>        Largura alvo (padrão: 80)
 
 Observabilidade (saída em stderr):
       --trace-eval       Imprime cada forma avaliada
@@ -648,9 +787,13 @@ function handleEval(code: string, opts: CliOptions) {
 }
 
 function main() {
+    // `fmt` é subcomando: consome o resto dos argumentos por conta própria.
+    const argv = process.argv.slice(2);
+    if (argv[0] === "fmt") return handleFmt(argv.slice(1));
+
     let opts: CliOptions;
     try {
-        opts = parseArgs(process.argv.slice(2));
+        opts = parseArgs(argv);
     } catch (error: any) {
         console.error(`\x1b[31m${error.message}\x1b[0m`);
         process.exit(1);

@@ -434,5 +434,5 @@ Escolher um dos caminhos:
 - [x] `~@` (unquote-splicing)
 - [ ] lazy seqs (subset)
 - [ ] transducers (subset)
-- [ ] melhor pretty-printer / formatter
+- [x] melhor pretty-printer / formatter
 - [ ] LSP (syntax highlight + completions) para editor
