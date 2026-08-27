@@ -5,10 +5,15 @@ import {
     ClojureVector,
 } from "../types/index.js";
 import { InvalidParamError } from "../errors/InvalidParamError.js";
+import { LazySeq } from "./LazySeq.js";
 
 export function equals(a: any, b: any): boolean {
     if (a === b) return true;
     if (a === null || b === null) return false;
+
+    // Comparar exige a sequência inteira, então realiza dos dois lados.
+    if (a instanceof LazySeq) return equals(a.realizar(), b);
+    if (b instanceof LazySeq) return equals(a, b.realizar());
 
     if (a instanceof ClojureKeyword && b instanceof ClojureKeyword) {
         return a.value === b.value;
@@ -75,6 +80,7 @@ export function equals(a: any, b: any): boolean {
 export function spliceItems(value: any): any[] {
     if (value === null || value === undefined) return [];
     if (Array.isArray(value)) return value;
+    if (value instanceof LazySeq) return value.realizar();
     if (typeof value === "string") return value.split("");
     if (value instanceof ClojureMap) {
         return value.entries().map(([k, v]) => ClojureVector.fromArray([k, v]));

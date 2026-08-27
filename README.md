@@ -37,6 +37,7 @@
 - [Interop e Sandbox](#interop-e-sandbox)
 - [No Browser](#no-browser)
 - [Desempenho e Limites](#desempenho-e-limites)
+- [Preguiça e Transdutores](#preguiça-e-transdutores)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [License](#license)
@@ -468,15 +469,17 @@ As **suítes de aceitação** (executadas no CI) ficam em `tests/fixtures/` e ro
 
 ## Documentação
 
-| Documento                                  | Sobre                                           |
-| ------------------------------------------ | ----------------------------------------------- |
-| **[docs/semantics.md](docs/semantics.md)** | Especificação do subset e diferenças vs Clojure |
-| [docs/stdlib.md](docs/stdlib.md)           | Referência completa do core                     |
-| [docs/modules.md](docs/modules.md)         | `require`, `load-file` e a política de módulos  |
-| [docs/compiler.md](docs/compiler.md)       | Pipeline, targets, source maps e watch          |
-| [docs/interop.md](docs/interop.md)         | Contrato de interop e sandbox                   |
-| [docs/browser.md](docs/browser.md)         | Bundles e limitações no browser                 |
-| [docs/performance.md](docs/performance.md) | Benchmarks, limites e observabilidade           |
+| Documento                                                    | Sobre                                           |
+| ------------------------------------------------------------ | ----------------------------------------------- |
+| **[docs/semantics.md](docs/semantics.md)**                   | Especificação do subset e diferenças vs Clojure |
+| [docs/stdlib.md](docs/stdlib.md)                             | Referência completa do core                     |
+| [docs/modules.md](docs/modules.md)                           | `require`, `load-file` e a política de módulos  |
+| [docs/compiler.md](docs/compiler.md)                         | Pipeline, targets, source maps e watch          |
+| [docs/interop.md](docs/interop.md)                           | Contrato de interop e sandbox                   |
+| [docs/browser.md](docs/browser.md)                           | Bundles e limitações no browser                 |
+| [docs/performance.md](docs/performance.md)                   | Benchmarks, limites e observabilidade           |
+| [docs/formatting.md](docs/formatting.md)                     | `pprint` e o formatador de código               |
+| [docs/lazy-and-transducers.md](docs/lazy-and-transducers.md) | Sequências preguiçosas e transdutores           |
 
 ---
 
@@ -492,8 +495,9 @@ Resumo do que existe hoje:
 | **Comparação/lógica**  | `=` `not=` `identical?` `<` `>` `<=` `>=` `not`                                                                                                                                                              |
 | **Predicados**         | `nil?` `some?` `true?` `false?` `boolean?` `number?` `string?` `keyword?` `symbol?` `fn?` `macro?` `map?` `vector?` `list?` `seq?` `coll?` `atom?` `zero?` `pos?` `neg?` `even?` `odd?` `empty?` `contains?` |
 | **Coleções**           | `list` `vector` `hash-map` `first` `second` `last` `rest` `count` `nth` `cons` `conj` `concat`                                                                                                               |
-| **Sequências**         | `map` `filter` `remove` `reduce` `some` `every?` `not-any?` `take` `drop` `range` `repeat` `reverse` `seq` `into`                                                                                            |
+| **Sequências**         | `map` `filter` `remove` `reduce` `some` `every?` `not-any?` `take` `drop` `take-while` `drop-while` `range` `repeat` `iterate` `cycle` `reverse` `seq` `into`                                                |
 | **Helpers funcionais** | `identity` `apply` `comp` `partial`                                                                                                                                                                          |
+| **Transdutores**       | `transduce` `sequence` `reduced` `reduced?` `unreduced`, e a aridade sem coleção de `map`, `filter`, `take`, …                                                                                               |
 | **Mapas**              | `get` `assoc` `dissoc` `keys` `vals` `merge` `update` `get-in` `assoc-in` `update-in`                                                                                                                        |
 | **Macros utilitárias** | `defn` `when` `when-not` `and` `or` `cond` `->` `->>`                                                                                                                                                        |
 | **IO/util**            | `print` `println` `prn` `pr-str` `str` `read-string` `assert` `time` `slurp`¹ `spit`¹                                                                                                                        |
@@ -705,6 +709,36 @@ em todo `.clj` do repo: não altera o programa, e é idempotente. Detalhes em
 
 > **Não há limite de memória.** Um programa que aloca sem parar continua capaz
 > de derrubar o processo — `--timeout` só interrompe quem está avaliando formas.
+
+---
+
+## Preguiça e Transdutores
+
+Guia completo em **[docs/lazy-and-transducers.md](docs/lazy-and-transducers.md)**.
+
+```clojure
+(take 5 (map (fn [x] (* x x)) (range)))    ;=> (0 1 4 9 16)
+(first (range))                            ;=> 0
+(take 4 (cycle [:a :b]))                   ;=> (:a :b :a :b)
+```
+
+`range`, `repeat`, `iterate`, `cycle`, `map`, `filter`, `remove`, `take`,
+`drop`, `take-while` e `drop-while` produzem sob demanda, com memoização.
+Sequências infinitas existem.
+
+Sem a coleção, essas funções devolvem um **transdutor**:
+
+```clojure
+(def xf (comp (map inc) (filter even?)))
+
+(transduce xf + 0 (range 10))                     ;=> 30
+(into [] xf (range 10))                           ;=> [2 4 6 8 10]
+(into [] (comp (filter odd?) (take 4)) (range))   ;=> [1 3 5 7]
+```
+
+> **A preguiça não é de graça.** Terminação antecipada ficou **7400×** mais
+> rápida, mas um pipeline eager sobre coleção já materializada ficou **~25%**
+> mais lento. `transduce` custa o mesmo e evita as coleções intermediárias.
 
 ---
 

@@ -1,6 +1,7 @@
 import { ClojureVector, ClojureMap, ClojureAtom } from "../types/index.js";
 import { prStr } from "./Printer.js";
 import { getPrintLimits } from "./Limits.js";
+import { LazySeq } from "./LazySeq.js";
 
 /**
  * Impressão com quebra de linha e indentação.
@@ -68,6 +69,15 @@ function preencher(itens: string[], indent: number, width: number): string {
 }
 
 function formatar(data: any, indent: number, width: number): string {
+    // Realiza o necessário e formata como lista; o `prStr` acima já respeitou
+    // o limite de impressão ao decidir o que produzir.
+    if (data instanceof LazySeq) {
+        const limite = getPrintLimits().length;
+        const itens =
+            limite === null ? data.realizar() : data.primeiros(limite + 1);
+        return formatar(itens, indent, width);
+    }
+
     const plano = prStr(data, true);
 
     // Cabe? Então não há o que decidir.

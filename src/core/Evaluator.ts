@@ -17,6 +17,7 @@ import { prStr } from "./Printer.js";
 import { resolveJsSymbol, getInteropPolicy } from "./Interop.js";
 import { checkTimeLimit } from "./Limits.js";
 import { spliceItems } from "./Runtime.js";
+import { LazySeq } from "./LazySeq.js";
 import { traceEnter, traceExit, traceMacroexpand, isTracing } from "./Trace.js";
 import { Bounce, trampoline } from "./Trampoline.js";
 import {
@@ -200,17 +201,21 @@ export function bind(env: Env, shape: any, value: any) {
     }
 
     if (Array.isArray(shape) || shape instanceof ClojureVector) {
+        // Destructuring precisa de posições, então realiza o que for preguiçoso.
+        const materializado =
+            value instanceof LazySeq ? value.realizar() : value;
+
         if (
-            value !== null &&
-            !Array.isArray(value) &&
-            !(value instanceof ClojureVector)
+            materializado !== null &&
+            !Array.isArray(materializado) &&
+            !(materializado instanceof ClojureVector)
         ) {
             throw new InvalidParamError(
-                `Destructuring: esperava sequência, recebeu ${value}`,
+                `Destructuring: esperava sequência, recebeu ${materializado}`,
             );
         }
 
-        const listValue = value === null ? [] : value;
+        const listValue = materializado === null ? [] : materializado;
 
         let valIndex = 0;
         for (let i = 0; i < shape.length; i++) {

@@ -158,6 +158,21 @@ export class ClojureNamespace {
     }
 }
 
+/**
+ * Marca um valor como resultado final de uma redução.
+ *
+ * É o que permite terminação antecipada: `(take 3)` como transdutor precisa
+ * dizer ao `reduce` para parar, e sem isso um transdutor sobre sequência
+ * infinita nunca terminaria.
+ */
+export class Reduced {
+    constructor(public value: any) {}
+
+    toString() {
+        return `#<Reduced ${String(this.value)}>`;
+    }
+}
+
 export class ClojureAtom {
     constructor(public value: any) {}
 

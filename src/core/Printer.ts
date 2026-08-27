@@ -7,6 +7,7 @@ import {
     ClojureNamespace,
 } from "../types/index.js";
 import { getPrintLimits } from "./Limits.js";
+import { LazySeq } from "./LazySeq.js";
 
 /**
  * Aplica o limite de itens, acrescentando `...` quando corta.
@@ -32,7 +33,9 @@ export function prStr(
     if (
         limites.level !== null &&
         profundidade >= limites.level &&
-        (Array.isArray(data) || data instanceof ClojureMap)
+        (Array.isArray(data) ||
+            data instanceof ClojureMap ||
+            data instanceof LazySeq)
     ) {
         return "#";
     }
@@ -83,6 +86,20 @@ export function prStr(
 
     if (data instanceof ClojureAtom) {
         return `#<Atom ${prStr(data.value, readably, profundidade + 1)}>`;
+    }
+
+    // Sequência preguiçosa: com limite de impressão, só produz o que vai
+    // mostrar. É o que permite imprimir uma sequência infinita.
+    if (data instanceof LazySeq) {
+        const itens =
+            limites.length === null
+                ? data.realizar()
+                : data.primeiros(limites.length + 1);
+        const textos = aplicarLimite(
+            itens.map((item) => prStr(item, readably, profundidade + 1)),
+            limites.length,
+        );
+        return `(${textos.join(" ")})`;
     }
 
     if (Array.isArray(data)) {

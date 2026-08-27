@@ -74,6 +74,13 @@ const CASOS: Caso[] = [
         codigo: "(into [] dados)",
     },
     {
+        // O ganho da preguiça (#33): sem ela, o pipeline inteiro é
+        // materializado antes do `take`.
+        nome: "seq: take 5 de pipeline sobre 100k",
+        setup: "(def grande (into [] (range 100000)))",
+        codigo: "(count (take 5 (map inc (filter even? grande))))",
+    },
+    {
         nome: "interop: acesso a js/",
         codigo: '(. "abs" js/Math -5)',
     },

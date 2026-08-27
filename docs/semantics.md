@@ -236,6 +236,59 @@ e no compilado:
 
 ---
 
+## Sequências preguiçosas
+
+Um **subset** da linguagem é preguiçoso: os elementos só são produzidos quando
+alguém precisa deles, e ficam em cache — percorrer duas vezes não recalcula.
+
+**Produzem sequência preguiçosa:**
+
+| Construtores                          | Transformações                                                        |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `range`, `repeat`, `iterate`, `cycle` | `map`, `filter`, `remove`, `take`, `drop`, `take-while`, `drop-while` |
+
+```clojure
+(take 5 (map (fn [x] (* x x)) (range)))    ;=> (0 1 4 9 16)
+(take 4 (filter even? (range)))            ;=> (0 2 4 6)
+(take 3 (iterate (fn [x] (* x 2)) 1))      ;=> (1 2 4)
+(take 4 (cycle [:a :b]))                   ;=> (:a :b :a :b)
+```
+
+**Sequências infinitas** existem: `(range)`, `(repeat x)`, `(iterate f x)` e
+`(cycle coll)` não terminam sozinhas.
+
+### O que força a realização
+
+Tudo que precisa da coleção inteira: `count`, `=`, `reduce`, `into`, `reverse`,
+`nth`, destructuring, hash (usar como chave de mapa) e a impressão sem
+`*print-length*`.
+
+```clojure
+(count (range))     ;; não termina — precisa contar tudo
+(take 3 (range))    ;; termina — só produz 3
+```
+
+> **Imprimir uma sequência infinita** funciona **com** `*print-length*`, que é
+> o padrão do REPL:
+>
+> ```clojure
+> (set-print-length! 5)
+> (range)   ;=> (0 1 2 3 4 ...)
+> ```
+>
+> Sem limite, imprimir uma infinita não termina. Use `--timeout` como rede: a
+> realização de sequência preguiçosa respeita o limite de tempo.
+
+### O que continua eager
+
+Todo o resto: `reduce`, `into`, `concat`, `reverse`, as funções de mapa,
+`conj`, `first`, `rest`. Vetores e mapas nunca são preguiçosos.
+
+`(seq? …)` é `true` para sequência preguiçosa e `(vector? …)` é `false` — como
+para qualquer lista.
+
+---
+
 ## Diferenças em relação ao Clojure
 
 Nem tentativa de compatibilidade total, nem acidente: as diferenças abaixo são
@@ -246,7 +299,7 @@ escolhas registradas.
 | O que falta                           | Situação                                                          |
 | ------------------------------------- | ----------------------------------------------------------------- |
 | **Namespaces** (`ns`)                 | `require` + alias cobre o caso de uso. [`modules.md`](modules.md) |
-| **Lazy seqs**                         | Tudo é _eager_. `(range)` infinito não existe                     |
+| **Lazy seqs completas**               | Só um subset é preguiçoso — ver acima                             |
 | **Higiene de macro**                  | Sem `gensym` nem `x#`                                             |
 | **Tipos numéricos**                   | Só `double`. Sem inteiros, BigInt ou racionais                    |
 | **Protocolos, multimétodos, records** | Fora de escopo                                                    |
@@ -258,14 +311,13 @@ escolhas registradas.
 
 ### Comportamento diferente
 
-| Situação                | Clojure                      | Aqui                           |
-| ----------------------- | ---------------------------- | ------------------------------ |
-| `catch`                 | Liga o objeto de exceção     | Liga a **mensagem** (string)   |
-| `catch`                 | Exige a classe da exceção    | Só o símbolo: `(catch e …)`    |
-| `.` interop             | `.metodo` e `.-campo`        | `(. "membro" alvo)` e `(.- …)` |
-| `defmacro`              | Vetor de params              | Vetor **ou** lista             |
-| Divisão                 | Racionais: `(/ 1 3)` → `1/3` | Ponto flutuante                |
-| `(range)` sem argumento | Sequência infinita           | Erro                           |
+| Situação    | Clojure                      | Aqui                           |
+| ----------- | ---------------------------- | ------------------------------ |
+| `catch`     | Liga o objeto de exceção     | Liga a **mensagem** (string)   |
+| `catch`     | Exige a classe da exceção    | Só o símbolo: `(catch e …)`    |
+| `.` interop | `.metodo` e `.-campo`        | `(. "membro" alvo)` e `(.- …)` |
+| `defmacro`  | Vetor de params              | Vetor **ou** lista             |
+| Divisão     | Racionais: `(/ 1 3)` → `1/3` | Ponto flutuante                |
 
 ### Marcas adicionadas
 

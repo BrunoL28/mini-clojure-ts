@@ -7,6 +7,7 @@ import {
     ClojureAtom,
     ClojureSymbol,
     ClojureMacro,
+    Reduced,
 } from "../types/index.js";
 import { prStr } from "../core/Printer.js";
 import { equals } from "../core/Runtime.js";
@@ -16,6 +17,21 @@ import { callFn, isCallable, truthy } from "../core/Invoke.js";
 import { getHost } from "../core/Host.js";
 import { setPrintLimits, getPrintLimits } from "../core/Limits.js";
 import { ppStr } from "../core/PrettyPrinter.js";
+import { LazySeq, lazy, pullDe, FIM } from "../core/LazySeq.js";
+import type { Proximo } from "../core/LazySeq.js";
+import {
+    mapeando,
+    filtrando,
+    removendo,
+    pegando,
+    descartando,
+    pegandoEnquanto,
+    descartandoEnquanto,
+    desreduzir,
+    garantirReduzido,
+    reduzirFonte,
+} from "../core/Transducers.js";
+import type { Transdutor, RF } from "../core/Transducers.js";
 import {
     OPEN_POLICY,
     accessMember,
@@ -45,11 +61,12 @@ function assertFn(val: any, operation: string) {
 
 /** Lista (seq) é qualquer Array que NÃO seja um ClojureVector. */
 function isList(x: any): boolean {
+    if (x instanceof LazySeq) return true;
     return Array.isArray(x) && !(x instanceof ClojureVector);
 }
 
 function isColl(x: any): boolean {
-    return Array.isArray(x) || x instanceof ClojureMap;
+    return Array.isArray(x) || x instanceof ClojureMap || x instanceof LazySeq;
 }
 
 /**
@@ -60,6 +77,9 @@ function isColl(x: any): boolean {
 function toSeq(x: any): any[] | null {
     if (x === null || x === undefined) return null;
     if (Array.isArray(x)) return x;
+    // Ponto único de realização: todo o resto da stdlib passa por aqui, então
+    // não precisa saber que sequência preguiçosa existe.
+    if (x instanceof LazySeq) return x.realizar();
     if (typeof x === "string") return x.split("");
     if (x instanceof ClojureMap) {
         return x.entries().map(([k, v]) => ClojureVector.fromArray([k, v]));
@@ -77,6 +97,56 @@ function asList(items: any[]): any[] {
 }
 
 /** Igual a `toSeq`, mas lança erro nomeando a operação quando o valor não é sequencial. */
+/**
+ * Produtor sobre um valor sequencial, sem realizá-lo, ou erro nomeando a
+ * operação.
+ *
+ * @param {any} x O valor.
+ * @param {string} operation Nome da operação, para a mensagem de erro.
+ * @return {Proximo} O produtor.
+ */
+function pullOuFalhar(x: any, operation: string): Proximo {
+    if (x instanceof ClojureMap) {
+        return pullDe(
+            x.entries().map(([k, v]) => ClojureVector.fromArray([k, v])),
+        )!;
+    }
+    const produtor = pullDe(x);
+    if (produtor === null) {
+        throw new InvalidParamError(
+            `Erro em '${operation}': esperava uma coleção, recebeu ${prStr(x)}`,
+        );
+    }
+    return produtor;
+}
+
+/**
+ * Fonte para redução: devolve a sequência preguiçosa como está, ou o array.
+ *
+ * @param {any} x O valor.
+ * @param {string} operation Nome da operação, para a mensagem de erro.
+ * @return {any} A fonte a reduzir.
+ */
+function fonteDe(x: any, operation: string): any {
+    if (x instanceof LazySeq) return x;
+    return seqOrThrow(x, operation);
+}
+
+/** A cauda de uma sequência preguiçosa, ainda preguiçosa. */
+function rest1(fonte: LazySeq): LazySeq {
+    return lazy(() => {
+        const proximo = fonte.cursor();
+        let pulou = false;
+        return () => {
+            if (!pulou) {
+                pulou = true;
+                if (proximo() === FIM) return FIM;
+            }
+            return proximo();
+        };
+    });
+}
+
 function seqOrThrow(x: any, operation: string): any[] {
     const s = toSeq(x);
     if (s === null) {
@@ -363,6 +433,7 @@ export const initialConfig: { [key: string]: any } = {
     },
     "empty?": (coll: any) => {
         if (coll === null || coll === undefined) return true;
+        if (coll instanceof LazySeq) return coll.vazia();
         if (coll instanceof ClojureMap) return coll.size === 0;
         const s = toSeq(coll);
         return s === null ? true : s.length === 0;
@@ -517,10 +588,20 @@ export const initialConfig: { [key: string]: any } = {
     list: (...args: any[]) => args,
     vector: (...args: any[]) => ClojureVector.fromArray(args),
     first: (coll: any) => {
+        // Um elemento basta: realizar a sequência inteira travaria numa
+        // infinita, e `(first (range))` é justamente um caso de uso.
+        if (coll instanceof LazySeq) {
+            const [primeiro] = coll.primeiros(1);
+            return primeiro === undefined ? null : primeiro;
+        }
         const s = toSeq(coll);
         return s && s.length > 0 ? s[0] : null;
     },
     second: (coll: any) => {
+        if (coll instanceof LazySeq) {
+            const itens = coll.primeiros(2);
+            return itens.length > 1 ? itens[1] : null;
+        }
         const s = toSeq(coll);
         return s && s.length > 1 ? s[1] : null;
     },
@@ -529,6 +610,20 @@ export const initialConfig: { [key: string]: any } = {
         return s && s.length > 0 ? s[s.length - 1] : null;
     },
     rest: (coll: any) => {
+        // Segue preguiçoso: `(take 2 (rest (range)))` precisa terminar.
+        if (coll instanceof LazySeq) {
+            return lazy(() => {
+                const proximo = coll.cursor();
+                let pulou = false;
+                return () => {
+                    if (!pulou) {
+                        pulou = true;
+                        if (proximo() === FIM) return FIM;
+                    }
+                    return proximo();
+                };
+            });
+        }
         const s = toSeq(coll);
         return s && s.length > 0 ? asList(s.slice(1)) : [];
     },
@@ -539,7 +634,11 @@ export const initialConfig: { [key: string]: any } = {
         return s === null ? 0 : s.length;
     },
     nth: (coll: any, index: number, notFound?: any) => {
-        const s = toSeq(coll);
+        // Produz só até o índice pedido.
+        const s =
+            coll instanceof LazySeq
+                ? coll.primeiros(Math.max(0, index + 1))
+                : toSeq(coll);
         if (s === null)
             throw new InvalidParamError("nth requer uma coleção sequencial");
         if (index < 0 || index >= s.length) {
@@ -568,64 +667,246 @@ export const initialConfig: { [key: string]: any } = {
     // Sequências (R3/E1)
     // ==========================================
 
-    // (map f coll) ou (map f coll1 coll2 ...)
+    // (map f coll) ou (map f coll1 coll2 ...) — preguiçosa
     map: (f: any, ...colls: any[]) => {
         assertFn(f, "map");
-        if (colls.length === 0)
-            throw new InvalidParamError("map requer ao menos uma coleção");
+        // Sem coleção, devolve um transdutor.
+        if (colls.length === 0) return mapeando(f);
 
-        const seqs = colls.map((c) => seqOrThrow(c, "map"));
-        const size = Math.min(...seqs.map((s) => s.length));
-
-        const out: any[] = [];
-        for (let i = 0; i < size; i++) {
-            out.push(callFn(f, ...seqs.map((s) => s[i])));
+        if (colls.length === 1) {
+            const fonte = colls[0];
+            return lazy(() => {
+                const proximo = pullOuFalhar(fonte, "map");
+                return () => {
+                    const v = proximo();
+                    return v === FIM ? FIM : callFn(f, v);
+                };
+            });
         }
-        return out;
+
+        // Com várias coleções, para na mais curta.
+        return lazy(() => {
+            const produtores = colls.map((c) => pullOuFalhar(c, "map"));
+            return () => {
+                const valores: any[] = [];
+                for (const produtor of produtores) {
+                    const v = produtor();
+                    if (v === FIM) return FIM;
+                    valores.push(v);
+                }
+                return callFn(f, ...valores);
+            };
+        });
     },
 
-    // (filter pred coll)
-    filter: (pred: any, coll: any) => {
+    // (filter pred coll) — preguiçosa
+    filter: (pred: any, ...resto: any[]) => {
         assertFn(pred, "filter");
-        return asList(
-            seqOrThrow(coll, "filter").filter((item) =>
-                truthy(callFn(pred, item)),
-            ),
-        );
+        if (resto.length === 0) return filtrando(pred);
+        const coll = resto[0];
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "filter");
+            return () => {
+                for (;;) {
+                    const v = proximo();
+                    if (v === FIM) return FIM;
+                    if (truthy(callFn(pred, v))) return v;
+                }
+            };
+        });
     },
 
-    // (remove pred coll)
-    remove: (pred: any, coll: any) => {
+    // (remove pred coll) — preguiçosa
+    remove: (pred: any, ...resto: any[]) => {
         assertFn(pred, "remove");
-        return asList(
-            seqOrThrow(coll, "remove").filter(
-                (item) => !truthy(callFn(pred, item)),
-            ),
-        );
+        if (resto.length === 0) return removendo(pred);
+        const coll = resto[0];
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "remove");
+            return () => {
+                for (;;) {
+                    const v = proximo();
+                    if (v === FIM) return FIM;
+                    if (!truthy(callFn(pred, v))) return v;
+                }
+            };
+        });
+    },
+
+    // (take n coll) — preguiçosa; funciona sobre sequência infinita
+    take: (n: any, ...resto: any[]) => {
+        assertNumber(n, "take");
+        if (resto.length === 0) return pegando(n);
+        const coll = resto[0];
+        return lazy(() => {
+            if (n <= 0) return () => FIM;
+            const proximo = pullOuFalhar(coll, "take");
+            let restam = n;
+            return () => (restam-- > 0 ? proximo() : FIM);
+        });
+    },
+
+    // (drop n coll) — preguiçosa
+    drop: (n: any, ...resto: any[]) => {
+        assertNumber(n, "drop");
+        if (resto.length === 0) return descartando(n);
+        const coll = resto[0];
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "drop");
+            let pular = n;
+            return () => {
+                while (pular > 0) {
+                    pular--;
+                    if (proximo() === FIM) return FIM;
+                }
+                return proximo();
+            };
+        });
+    },
+
+    // (take-while pred coll) — para no primeiro que falha
+    "take-while": (pred: any, ...resto: any[]) => {
+        assertFn(pred, "take-while");
+        if (resto.length === 0) return pegandoEnquanto(pred);
+        const coll = resto[0];
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "take-while");
+            let acabou = false;
+            return () => {
+                if (acabou) return FIM;
+                const v = proximo();
+                if (v === FIM || !truthy(callFn(pred, v))) {
+                    acabou = true;
+                    return FIM;
+                }
+                return v;
+            };
+        });
+    },
+
+    // (drop-while pred coll) — descarta enquanto o predicado valer
+    "drop-while": (pred: any, ...resto: any[]) => {
+        assertFn(pred, "drop-while");
+        if (resto.length === 0) return descartandoEnquanto(pred);
+        const coll = resto[0];
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "drop-while");
+            let descartando = true;
+            return () => {
+                for (;;) {
+                    const v = proximo();
+                    if (v === FIM) return FIM;
+                    if (descartando && truthy(callFn(pred, v))) continue;
+                    descartando = false;
+                    return v;
+                }
+            };
+        });
     },
 
     // (reduce f coll) ou (reduce f init coll)
+    // Respeita `reduced`, para terminação antecipada.
     reduce: (f: any, ...args: any[]) => {
         assertFn(f, "reduce");
+        const passo: RF = (acumulador, item) => callFn(f, acumulador, item);
 
+        // Consome sob demanda: com `reduced`, reduzir uma sequência infinita
+        // precisa poder terminar.
         if (args.length === 1) {
-            const coll = seqOrThrow(args[0], "reduce");
+            const fonte = args[0];
+            if (fonte instanceof LazySeq) {
+                const [primeiro] = fonte.primeiros(1);
+                if (primeiro === undefined && fonte.vazia()) return callFn(f);
+                return reduzirFonte(passo, primeiro, rest1(fonte));
+            }
+            const coll = seqOrThrow(fonte, "reduce");
             if (coll.length === 0) return callFn(f);
-            let acc = coll[0];
-            for (let i = 1; i < coll.length; i++) acc = callFn(f, acc, coll[i]);
-            return acc;
+            return reduzirFonte(passo, coll[0], coll.slice(1));
         }
 
         if (args.length === 2) {
-            const coll = seqOrThrow(args[1], "reduce");
-            let acc = args[0];
-            for (const item of coll) acc = callFn(f, acc, item);
-            return acc;
+            const fonte = args[1];
+            return reduzirFonte(
+                passo,
+                args[0],
+                fonte instanceof LazySeq ? fonte : seqOrThrow(fonte, "reduce"),
+            );
         }
 
         throw new InvalidParamError(
             `Número inválido de argumentos para reduce (${args.length + 1})`,
         );
+    },
+
+    // (reduced x) — marca o valor como resultado final da redução
+    reduced: (x: any) => garantirReduzido(x),
+    "reduced?": (x: any) => x instanceof Reduced,
+    unreduced: (x: any) => desreduzir(x),
+
+    // (transduce xform f coll) ou (transduce xform f init coll)
+    transduce: (xform: any, f: any, ...args: any[]) => {
+        assertFn(f, "transduce");
+        if (typeof xform !== "function") {
+            throw new InvalidParamError(
+                "transduce espera um transdutor como primeiro argumento",
+            );
+        }
+
+        const passo: RF = (acumulador, item) => callFn(f, acumulador, item);
+        const reduzido = (xform as Transdutor)(passo);
+
+        if (args.length === 1) {
+            return reduzirFonte(
+                reduzido,
+                callFn(f),
+                fonteDe(args[0], "transduce"),
+            );
+        }
+        if (args.length === 2) {
+            return reduzirFonte(
+                reduzido,
+                args[0],
+                fonteDe(args[1], "transduce"),
+            );
+        }
+
+        throw new InvalidParamError(
+            "transduce espera (transduce xform f coll) ou (transduce xform f init coll)",
+        );
+    },
+
+    // (sequence xform coll) — aplica o transdutor preguiçosamente
+    sequence: (xform: any, coll: any) => {
+        if (typeof xform !== "function") {
+            throw new InvalidParamError(
+                "sequence espera um transdutor como primeiro argumento",
+            );
+        }
+
+        return lazy(() => {
+            const proximo = pullOuFalhar(coll, "sequence");
+            const pendentes: any[] = [];
+            const coletar: RF = (acumulador, item) => {
+                pendentes.push(item);
+                return acumulador;
+            };
+            const passo = (xform as Transdutor)(coletar);
+            let terminou = false;
+
+            return () => {
+                for (;;) {
+                    if (pendentes.length > 0) return pendentes.shift();
+                    if (terminou) return FIM;
+
+                    const valor = proximo();
+                    if (valor === FIM) {
+                        terminou = true;
+                        continue;
+                    }
+                    if (passo(null, valor) instanceof Reduced) terminou = true;
+                }
+            };
+        });
     },
 
     // (some pred coll) -> primeiro valor verdadeiro retornado por pred, ou nil
@@ -656,33 +937,16 @@ export const initialConfig: { [key: string]: any } = {
         return true;
     },
 
-    // (take n coll)
-    take: (n: any, coll: any) => {
-        assertNumber(n, "take");
-        if (n <= 0) return [];
-        return asList(seqOrThrow(coll, "take").slice(0, n));
-    },
-
-    // (drop n coll)
-    drop: (n: any, coll: any) => {
-        assertNumber(n, "drop");
-        const s = seqOrThrow(coll, "drop");
-        return asList(n <= 0 ? s.slice() : s.slice(n));
-    },
-
-    // (range end) | (range start end) | (range start end step)
+    // (range) | (range end) | (range start end) | (range start end step)
+    // Preguiçosa: (range) sem argumento é infinita.
     range: (...args: any[]) => {
         args.forEach((a) => assertNumber(a, "range"));
 
         let start = 0;
-        let end = 0;
+        let end = Number.POSITIVE_INFINITY;
         let step = 1;
 
-        if (args.length === 0) {
-            throw new InvalidParamError(
-                "range infinito não é suportado neste subset (use (range n))",
-            );
-        } else if (args.length === 1) {
+        if (args.length === 1) {
             end = args[0];
         } else if (args.length === 2) {
             start = args[0];
@@ -691,26 +955,77 @@ export const initialConfig: { [key: string]: any } = {
             start = args[0];
             end = args[1];
             step = args[2];
-        } else {
+        } else if (args.length > 3) {
             throw new InvalidParamError(
                 `Número inválido de argumentos para range (${args.length})`,
             );
         }
 
-        if (step === 0)
+        if (step === 0) {
             throw new InvalidParamError("range: step não pode ser 0");
+        }
 
-        const out: number[] = [];
-        if (step > 0) for (let i = start; i < end; i += step) out.push(i);
-        else for (let i = start; i > end; i += step) out.push(i);
-        return out;
+        return lazy(() => {
+            let atual = start;
+            return () => {
+                if (step > 0 ? atual >= end : atual <= end) return FIM;
+                const valor = atual;
+                atual += step;
+                return valor;
+            };
+        });
     },
 
-    // (repeat n x) — versão eager (não há lazy seqs neste subset)
-    repeat: (n: any, x: any) => {
+    // (repeat x) infinito | (repeat n x)
+    repeat: (...args: any[]) => {
+        if (args.length === 1) {
+            const [x] = args;
+            return lazy(() => () => x);
+        }
+
+        if (args.length !== 2) {
+            throw new InvalidParamError(
+                "repeat espera (repeat x) ou (repeat n x)",
+            );
+        }
+
+        const [n, x] = args;
         assertNumber(n, "repeat");
-        if (n <= 0) return [];
-        return Array(n).fill(x);
+        return lazy(() => {
+            let restam = n;
+            return () => (restam-- > 0 ? x : FIM);
+        });
+    },
+
+    // (iterate f x) -> x, (f x), (f (f x)), ... — infinita
+    iterate: (f: any, x: any) => {
+        assertFn(f, "iterate");
+        return lazy(() => {
+            let atual = x;
+            let primeiro = true;
+            return () => {
+                if (primeiro) {
+                    primeiro = false;
+                    return atual;
+                }
+                atual = callFn(f, atual);
+                return atual;
+            };
+        });
+    },
+
+    // (cycle coll) — repete a coleção para sempre
+    cycle: (coll: any) => {
+        return lazy(() => {
+            const itens = seqOrThrow(coll, "cycle");
+            if (itens.length === 0) return () => FIM;
+            let i = 0;
+            return () => {
+                const valor = itens[i];
+                i = (i + 1) % itens.length;
+                return valor;
+            };
+        });
     },
 
     // (reverse coll)
@@ -719,6 +1034,7 @@ export const initialConfig: { [key: string]: any } = {
 
     // (seq coll) -> a sequência, ou nil se vazia
     seq: (coll: any) => {
+        if (coll instanceof LazySeq) return coll.vazia() ? null : coll;
         const s = toSeq(coll);
         if (s === null) {
             if (coll === null || coll === undefined) return null;
@@ -730,9 +1046,35 @@ export const initialConfig: { [key: string]: any } = {
     },
 
     // (into to from) — preserva o tipo de `to`
-    into: (to: any, from: any) => {
+    // (into to from) ou (into to xform from)
+    into: (to: any, ...args: any[]) => {
+        if (args.length === 1) {
+            const from = args[0];
+            if (from === null || from === undefined) return to;
+            return addAll(to, seqOrThrow(from, "into"));
+        }
+
+        if (args.length !== 2) {
+            throw new InvalidParamError(
+                "into espera (into to from) ou (into to xform from)",
+            );
+        }
+
+        const [xform, from] = args;
+        if (typeof xform !== "function") {
+            throw new InvalidParamError(
+                "into com três argumentos espera um transdutor no meio",
+            );
+        }
         if (from === null || from === undefined) return to;
-        return addAll(to, seqOrThrow(from, "into"));
+
+        // Constrói direto, sem materializar a sequência intermediária.
+        const passo: RF = (acumulador, item) => addAll(acumulador, [item]);
+        return reduzirFonte(
+            (xform as Transdutor)(passo),
+            to,
+            fonteDe(from, "into"),
+        );
     },
 
     // ==========================================

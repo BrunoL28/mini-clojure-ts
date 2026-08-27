@@ -5,6 +5,7 @@ import {
     ClojureMap,
     type ClojureList,
 } from "../types/index.js";
+import { LazySeq } from "./LazySeq.js";
 
 function stringHash(str: string): number {
     let hash = 0;
@@ -34,6 +35,9 @@ export function hash(o: any): number {
 
     if (o instanceof ClojureKeyword) return stringHash(o.value) + 0x9e3779b9;
     if (o instanceof ClojureSymbol) return stringHash(o.value);
+
+    // Hash exige a sequência inteira.
+    if (o instanceof LazySeq) return hash(o.realizar());
 
     if (o instanceof ClojureVector || Array.isArray(o)) {
         let h = 1;

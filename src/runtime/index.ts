@@ -18,6 +18,7 @@ import {
 } from "../types/index.js";
 import { initialConfig } from "../stdlib/index.js";
 import { callFn, truthy as isTruthy } from "../core/Invoke.js";
+import { LazySeq } from "../core/LazySeq.js";
 import {
     equals as structuralEquals,
     spliceItems,
@@ -31,6 +32,7 @@ export const core: { [key: string]: any } = initialConfig;
 export const truthy = isTruthy;
 /** Resolve o valor de um `~@` numa sequência intercalável. */
 export const spliceable = spliceItems;
+export { LazySeq, lazy } from "../core/LazySeq.js";
 /** Concatena os pedaços de uma sequência com `~@` já resolvido. */
 export const splice = spliceChunks;
 export const equals = structuralEquals;
@@ -120,6 +122,10 @@ export function call(f: any, ...args: any[]): any {
  */
 export function nth_(coll: any, index: number): any {
     if (coll === null || coll === undefined) return null;
+    if (coll instanceof LazySeq) {
+        const itens = coll.primeiros(index + 1);
+        return index < itens.length ? itens[index] : null;
+    }
     if (typeof coll === "string")
         return index < coll.length ? coll[index] : null;
     if (!Array.isArray(coll)) return null;
@@ -134,6 +140,9 @@ export function nth_(coll: any, index: number): any {
  * @return {ClojureVector} Os elementos restantes.
  */
 export function restFrom(coll: any, index: number): ClojureVector {
+    if (coll instanceof LazySeq) {
+        return ClojureVector.fromArray(coll.realizar().slice(index));
+    }
     if (!Array.isArray(coll)) return ClojureVector.fromArray([]);
     return ClojureVector.fromArray(coll.slice(index));
 }

@@ -7,6 +7,65 @@ e o versionamento segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## [Não lançado]
 
+## [10.0.0] — 2026-08-26
+
+Sequências preguiçosas ([#33]) e transdutores ([#34]) — os dois últimos itens
+substantivos do backlog.
+
+### Adicionado
+
+- **Sequências preguiçosas** ([#33]). `range`, `repeat`, `iterate`, `cycle`,
+  `map`, `filter`, `remove`, `take`, `drop`, `take-while` e `drop-while`
+  passam a produzir sob demanda, com memoização.
+    - **Sequências infinitas** existem: `(range)`, `(repeat x)`,
+      `(iterate f x)`, `(cycle coll)`.
+    - `first`, `second`, `rest`, `nth`, `empty?` e `seq` produzem só o que
+      precisam — `(first (range))` termina.
+    - Imprimir infinita funciona com `*print-length*`, o padrão do REPL.
+      `--timeout` interrompe a realização de uma infinita.
+    - Novas: `iterate`, `cycle`, `take-while`, `drop-while`.
+- **Transdutores** ([#34]). Sem a coleção, `map`, `filter`, `remove`, `take`,
+  `drop`, `take-while` e `drop-while` devolvem um transdutor, componível com
+  `comp`.
+    - `transduce`, `into` com transdutor, e `sequence` (preguiçoso).
+    - `reduced`, `reduced?` e `unreduced` para terminação antecipada.
+      `reduce` respeita `reduced`, inclusive sobre sequência infinita.
+    - Transdutores com estado criam o estado a cada aplicação, então reusar o
+      mesmo transdutor é seguro.
+- Documentação em [`docs/lazy-and-transducers.md`](docs/lazy-and-transducers.md).
+
+### ⚠️ Mudanças de comportamento
+
+- **`(range)` sem argumento** era erro; agora é uma sequência infinita.
+- **`map`, `filter` e afins devolvem sequência preguiçosa**, não array. Isso é
+  invisível para `=`, `count`, `pr-str`, `seq?` e destructuring, que realizam.
+  Fica visível para código TypeScript que consumia o retorno como `Array`.
+- **`repeat` ganhou a aridade 1** (infinita), além de `(repeat n x)`.
+
+### Desempenho
+
+Medido contra a `9.2.0`, em processos separados:
+
+| Caso                                       | Efeito     |
+| ------------------------------------------ | ---------- |
+| `(take 5 …)` de pipeline sobre 100k        | **+7400×** |
+| `(reduce + (map inc (filter even? coll)))` | **−25%**   |
+| Todo o resto                               | ±2%        |
+
+A preguiça não é de graça: um pipeline eager sobre coleção já materializada
+ficou ~25% mais lento, porque a cadeia produz elemento a elemento em vez de
+rodar laços apertados. `transduce` custa o mesmo e evita as coleções
+intermediárias.
+
+Duas decisões que os números forçaram:
+
+- **O protocolo é closure, não gerador.** Geradores encadeados do JavaScript
+  custam ~8× um laço eager; closures pull custam ~2,5×. A primeira versão
+  usava geradores e o pipeline caía **52%**.
+- **O consumo é em blocos de 32**, mesmo valor e mesma razão do Clojure com
+  seqs chunked. O preço é idêntico ao do Clojure: uma redução que termina cedo
+  pode ter produzido até 31 elementos a mais.
+
 ## [9.2.0] — 2026-08-26
 
 Item de backlog [#35]: impressão legível de dados e formatação de código.
@@ -378,7 +437,8 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 > A numeração segue a convenção do roadmap no README: uma major por milestone
 > (R3 → 5.0.0, R4 → 6.0.0).
 
-[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.2.0...HEAD
+[não lançado]: https://github.com/BrunoL28/mini-clojure-ts/compare/v10.0.0...HEAD
+[10.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.2.0...v10.0.0
 [9.2.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.1.0...v9.2.0
 [9.1.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/BrunoL28/mini-clojure-ts/compare/v8.0.0...v9.0.0
@@ -417,5 +477,7 @@ Este changelog começa na `5.0.0`. As versões anteriores estão documentadas na
 [#31]: https://github.com/BrunoL28/mini-clojure-ts/issues/31
 [#1]: https://github.com/BrunoL28/mini-clojure-ts/issues/1
 [#32]: https://github.com/BrunoL28/mini-clojure-ts/issues/32
+[#33]: https://github.com/BrunoL28/mini-clojure-ts/issues/33
+[#34]: https://github.com/BrunoL28/mini-clojure-ts/issues/34
 [#35]: https://github.com/BrunoL28/mini-clojure-ts/issues/35
 [#38]: https://github.com/BrunoL28/mini-clojure-ts/issues/38

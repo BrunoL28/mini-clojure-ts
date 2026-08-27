@@ -432,7 +432,7 @@ Escolher um dos caminhos:
 ## Backlog (ideias futuras, sem compromisso)
 
 - [x] `~@` (unquote-splicing)
-- [ ] lazy seqs (subset)
-- [ ] transducers (subset)
+- [x] lazy seqs (subset)
+- [x] transducers (subset)
 - [x] melhor pretty-printer / formatter
 - [ ] LSP (syntax highlight + completions) para editor

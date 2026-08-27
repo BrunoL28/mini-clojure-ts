@@ -95,7 +95,12 @@
 (swap! contador + 5)
 (v "atom" 5 @contador)
 
-;; range sem args
-(v "(range) erro" :erro (try (range) (catch e :erro)))
+;; sequências preguiçosas
+(v "(range) é infinita e preguiçosa" (list 0 1 2) (take 3 (range)))
+(v "map preguiçoso sobre infinita" (list 0 1 4) (take 3 (map (fn [x] (* x x)) (range))))
+(v "filter preguiçoso" (list 0 2 4) (take 3 (filter even? (range))))
+(v "take-while para no primeiro falso" (list 1 3 9) (take-while (fn [x] (< x 20)) (iterate (fn [x] (* x 3)) 1)))
+(v "seq? de sequência preguiçosa" true (seq? (map inc [1 2])))
+(v "= realiza a preguiçosa" true (= (list 1 2 3) (map inc [0 1 2])))
 
 (println "--- FIM SEMANTICS SUITE ---")
